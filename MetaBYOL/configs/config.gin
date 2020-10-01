@@ -1,0 +1,52 @@
+# Devices
+num_cpu_threads = 10
+set_devices.num_cpu_threads = %num_cpu_threads
+set_devices.soft_device_placement = False
+
+# Input Pipeline
+ds_name = 'cifar10'
+meta_batch_size = 4
+size_batch = 64
+#tfds_path = '/data/public/tensorflow_datasets'
+tfds_path = '~\\tensorflow_datasets'
+im_size = 32 #224
+
+gen_pipeline_train.ds_name = %ds_name
+gen_pipeline_train.tfds_path = %tfds_path
+gen_pipeline_train.size_batch = %size_batch
+gen_pipeline_train.meta_batch_size = %meta_batch_size
+gen_pipeline_train.b_shuffle = True
+gen_pipeline_train.dataset_cache = True
+gen_pipeline_train.size_buffer_cpu = 2
+gen_pipeline_train.shuffle_buffer_size = 50000
+gen_pipeline_train.num_parallel_calls = %num_cpu_threads
+gen_pipeline_train.augmentation = 'simclr' #'autoaug'
+
+crop_and_resize.imsize = %im_size
+resize_only.imsize = %im_size
+
+# Network architecture
+gen_model.Architecture = @OnlineNetwork #@ExampleModel
+gen_model.shape = (%im_size,%im_size,3)
+gen_model.num_initial_filters = 32
+gen_model.hidden_size = 1024    #4096 (byol imagenet implementation)
+gen_model.projection_size = 256    #256 (byol imagenet implementation)
+gen_model.base_model = 'resnet20'
+gen_model.weight_decay = 1.5e-6
+gen_model.num_layers = 20
+
+
+# MetaTraining parameters
+train.n_meta_epochs = 1
+train.meta_batch_size = %meta_batch_size
+train.meta_learning_rate = 0.001
+
+#Inner loop
+train.save_period = 1
+MAML.num_steps_ml = 1 #are more steps possible? tbd
+MAML.lr_inner_ml = 0.01
+
+
+
+
+
