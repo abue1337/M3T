@@ -25,12 +25,15 @@ class MAML():
 
         self.input_shape = shape
         self.target_model(tf.zeros(shape=self.input_shape))
+        self.target_model(tf.zeros(shape=self.input_shape), unsupervised_training=True, online=True)
         self.updated_models = list()
         self.test_model = target_model()
         for _ in range(self.num_steps_ml + 1):
             updated_model = target_model()
             updated_model(tf.zeros(shape=self.input_shape))
+            updated_model(tf.zeros(shape=self.input_shape), unsupervised_training=True, online=True)
             self.updated_models.append(updated_model)
+        self.inner_optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr_inner_ml)
 
     @gin.configurable(blacklist=['ds_train', 'run_paths'])
     def train(self,
@@ -49,7 +52,7 @@ class MAML():
 
         # Define optimizer
         meta_optimizer = tf.keras.optimizers.Adam(learning_rate=meta_learning_rate)
-        # meta_optimizer = tf.keras.optimizers.SGD(learning_rate=meta_learning_rate)
+
         # Define checkpoints and checkpoint manager
         # manager automatically handles model reloading if directory contains ckpts
         ckpt = tf.train.Checkpoint(net=self.target_model, opt=meta_optimizer)
@@ -116,56 +119,63 @@ class MAML():
         meta_optimizer.apply_gradients(zip(outer_gradients, self.target_model.trainable_variables))
         meta_train_acc(test_label_ep, test_predictions)
 
-    @tf.function
+    # @tf.function
     def get_losses_of_tasks_batch(self, inputs):
         train1_ep, train2_ep, test_ep, test_label_ep = inputs
         updated_model = self.inner_train_loop(train1_ep, train2_ep)
         test_prediction = updated_model(test_ep, training=True,
-                                                  unsupervised_training = False)  # TODO: training=True or False??
+                                        unsupervised_training=False)  # TODO: training=True or False??
         test_loss = tf.reduce_mean(self.loss_function(test_label_ep, test_prediction))
         return test_loss, test_prediction
 
     def create_meta_model(self, updated_model, model, gradients):
         k = 0
         variables = list()
+        model_layers = list(flatten(model.layers))
+        updated_model_layers = list(flatten(updated_model.layers))
 
-        for i in range(len(model.layers)):
-            if isinstance(model.layers[i], tf.keras.layers.Conv2D) or \
-                    isinstance(model.layers[i], tf.keras.layers.Dense):
-                updated_model.layers[i].kernel = model.layers[i].kernel - self.lr_inner_ml * gradients[k]
+        gradients = [tf.zeros(1) if v is None else v for v in gradients]
+        for i in range(len(model_layers)):
+            logging.info(i)
+            if isinstance(model_layers[i], tf.keras.layers.Conv2D) or \
+                    isinstance(model_layers[i], tf.keras.layers.Dense):
+                updated_model_layers[i].kernel = model_layers[i].kernel - self.lr_inner_ml * gradients[k]
                 k += 1
-                variables.append(updated_model.layers[i].kernel)
+                variables.append(updated_model_layers[i].kernel)
 
-                updated_model.layers[i].bias = model.layers[i].bias - self.lr_inner_ml * gradients[k]
-                k += 1
-                variables.append(updated_model.layers[i].bias)
+                if not updated_model_layers[i].bias is None:
+                    updated_model_layers[i].bias = model_layers[i].bias - self.lr_inner_ml * gradients[k]
+                    k += 1
+                    variables.append(updated_model_layers[i].bias)
 
-            elif isinstance(model.layers[i], tf.keras.layers.BatchNormalization):
-                if hasattr(model.layers[i], 'moving_mean') and model.layers[i].moving_mean is not None:
-                    updated_model.layers[i].moving_mean.assign(model.layers[i].moving_mean)
-                if hasattr(model.layers[i], 'moving_variance') and model.layers[i].moving_variance is not None:
-                    updated_model.layers[i].moving_variance.assign(model.layers[i].moving_variance)
-                if hasattr(model.layers[i], 'gamma') and model.layers[i].gamma is not None:
-                    updated_model.layers[i].gamma = model.layers[i].gamma - self.lr_inner_ml * gradients[k]
+            elif isinstance(model_layers[i], tf.keras.layers.BatchNormalization):
+                if hasattr(model_layers[i], 'moving_mean') and model_layers[i].moving_mean is not None:
+                    updated_model_layers[i].moving_mean.assign(model_layers[i].moving_mean)
+                if hasattr(model_layers[i], 'moving_variance') and model_layers[i].moving_variance is not None:
+                    updated_model_layers[i].moving_variance.assign(model_layers[i].moving_variance)
+                if hasattr(model_layers[i], 'gamma') and model_layers[i].gamma is not None:
+                    updated_model_layers[i].gamma = model_layers[i].gamma - self.lr_inner_ml * gradients[k]
                     k += 1
-                    variables.append(updated_model.layers[i].gamma)
-                if hasattr(model.layers[i], 'beta') and model.layers[i].beta is not None:
-                    updated_model.layers[i].beta = \
-                        model.layers[i].beta - self.lr_inner_ml * gradients[k]
+                    variables.append(updated_model_layers[i].gamma)
+                if hasattr(model_layers[i], 'beta') and model_layers[i].beta is not None:
+                    updated_model_layers[i].beta = \
+                        model_layers[i].beta - self.lr_inner_ml * gradients[k]
                     k += 1
-                    variables.append(updated_model.layers[i].beta)
+                    variables.append(updated_model_layers[i].beta)
 
-            elif isinstance(model.layers[i], tf.keras.layers.LayerNormalization):
-                if hasattr(model.layers[i], 'gamma') and model.layers[i].gamma is not None:
-                    updated_model.layers[i].gamma = model.layers[i].gamma - self.lr_inner_ml * gradients[k]
+            elif isinstance(model_layers[i], tf.keras.layers.LayerNormalization):
+                if hasattr(model_layers[i], 'gamma') and model_layers[i].gamma is not None:
+                    updated_model_layers[i].gamma = model_layers[i].gamma - self.lr_inner_ml * gradients[k]
                     k += 1
-                    variables.append(updated_model.layers[i].gamma)
-                if hasattr(model.layers[i], 'beta') and model.layers[i].beta is not None:
-                    updated_model.layers[i].beta = \
-                        model.layers[i].beta - self.lr_inner_ml * gradients[k]
+                    variables.append(updated_model_layers[i].gamma)
+                if hasattr(model_layers[i], 'beta') and model_layers[i].beta is not None:
+                    updated_model_layers[i].beta = \
+                        model_layers[i].beta - self.lr_inner_ml * gradients[k]
                     k += 1
-                    variables.append(updated_model.layers[i].beta)
-
+                    variables.append(updated_model_layers[i].beta)
+            else:
+                logging.info('Layer could not be copied!')
+        logging.info(k)
         setattr(updated_model, 'meta_trainable_variables', variables)
 
     def inner_train_loop(self, train1_ep, train2_ep):
@@ -174,7 +184,10 @@ class MAML():
         for variable in self.target_model.trainable_variables:
             gradients.append(tf.zeros_like(variable))
 
-        self.create_meta_model(self.updated_models[0], self.target_model,
+        # for i in range(0, len(self.target_model.weights)):
+        #    self.updated_models[0].weights[i].assign(self.target_model.weights[i])
+
+        self.create_meta_model(self.updated_models[0], self.target_model,  # TODO: doesnt work with nested models!
                                gradients)
         # TODO: Copy target model needs to be done for meta learning dependency
         #  but is differing from BYOL algorithm(both random initialized)
@@ -183,7 +196,7 @@ class MAML():
         tar2 = self.target_model(train2_ep, training=True, unsupervised_training=True)
         for k in range(1, self.num_steps_ml + 1):
             with tf.GradientTape(persistent=False) as train_tape:
-                train_tape.watch(self.updated_models[k - 1].meta_trainable_variables)
+                train_tape.watch(self.updated_models[k - 1].trainable_variables)
                 prediction1 = self.updated_models[k - 1](train1_ep, training=True, unsupervised_training=True,
                                                          online=True)
                 prediction2 = self.updated_models[k - 1](train2_ep, training=True, unsupervised_training=True,
@@ -192,8 +205,11 @@ class MAML():
                 loss2 = self.byol_loss_fn(prediction2, tar1)
                 loss = tf.reduce_mean(loss1 + loss2)
             gradients = train_tape.gradient(loss, self.updated_models[k - 1].meta_trainable_variables)
+            # self.inner_optimizer.apply_gradients(zip(gradients, self.updated_models[k-1].trainable_variables))
             self.create_meta_model(self.updated_models[k], self.updated_models[k - 1], gradients)
-        return self.updated_models[-1]
+            # for i in range(0, len(self.updated_models[k-1].weights)):
+            #    self.updated_models[k].weights[i].assign(self.updated_models[k-1].weights[i]-self.lr_inner_ml*gradients)
+        return self.updated_models[-2]
 
     def loss_function(self, labels, predictions):
         return tf.keras.losses.categorical_crossentropy(labels, predictions)
@@ -202,3 +218,11 @@ class MAML():
         x = tf.math.l2_normalize(x, axis=-1)
         y = tf.math.l2_normalize(y, axis=-1)
         return 2 - 2 * tf.math.reduce_sum(x * y, axis=-1)
+
+
+def flatten(l):
+    for el in l:
+        if hasattr(el, 'layers'):
+            yield from flatten(el.layers)
+        else:
+            yield el

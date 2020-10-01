@@ -129,7 +129,7 @@ class Architecture(models.Model):
         return h #, g
 
 
-class ResNetUnit(layers.Layer):
+class ResNetUnit(models.Model):
     """A ResNet Unit contains two conv2d layers interleaved with Batch
     Normalization and ReLU.
     """
