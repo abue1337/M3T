@@ -93,7 +93,7 @@ class MAML():
                 # logging.info(f"Time for one iteration {stop - start}")
 
             logging.info(f"Epoch {epoch}: acc = {meta_train_accuracy.result()}")
-            logging.info(f"Epoch {epoch}: loss = {meta_train_accuracy.result()}")
+            logging.info(f"Epoch {epoch}: loss = {meta_train_loss.result()}")
             with writer.as_default():
                 tf.summary.scalar('Average meta test tasks accuracy', meta_train_accuracy.result(),
                                   step=epoch)
@@ -208,8 +208,8 @@ class MAML():
                                                          online=True)
                 prediction2 = self.updated_models[k - 1](train2_ep, training=True, unsupervised_training=True,
                                                          online=True)
-                loss1 = self.byol_loss_fn(prediction1, tar2)
-                loss2 = self.byol_loss_fn(prediction2, tar1)
+                loss1 = self.byol_loss_fn(prediction1, tf.stop_gradient(tar2))
+                loss2 = self.byol_loss_fn(prediction2, tf.stop_gradient(tar1))
                 loss = tf.reduce_mean(loss1 + loss2)
             gradients = train_tape.gradient(loss, self.updated_models[k - 1].meta_trainable_variables)
             # self.inner_optimizer.apply_gradients(zip(gradients, self.updated_models[k-1].trainable_variables))
