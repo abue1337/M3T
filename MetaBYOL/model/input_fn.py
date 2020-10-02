@@ -1,9 +1,9 @@
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import gin
-from model.augmentations.auto_augment import distort_image_with_autoaugment
-from model.augmentations.simclr_augment import distort_simclr
-from model.augmentations.simclr_augment import resize_only
+from MetaBYOL.model.augmentations.auto_augment import distort_image_with_autoaugment
+from MetaBYOL.model.augmentations.simclr_augment import distort_simclr
+from MetaBYOL.model.augmentations.simclr_augment import resize_only
 
 @gin.configurable
 def gen_pipeline_train(ds_name='mnist',
