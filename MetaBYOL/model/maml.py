@@ -94,7 +94,7 @@ class MAML():
         logging.info(f"Finished")
         return self.target_model
 
-    # @tf.function
+    @tf.function
     def func_help(self, train1_ep, train2_ep, test_ep, test_label_ep, meta_batch_size):
 
         tasks_final_losses, test_predictions = tf.map_fn(

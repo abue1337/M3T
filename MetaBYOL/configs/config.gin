@@ -7,8 +7,8 @@ set_devices.soft_device_placement = False
 ds_name = 'cifar10'
 meta_batch_size = 4
 size_batch = 64
-#tfds_path = '/data/public/tensorflow_datasets'
-tfds_path = '~\\tensorflow_datasets'
+tfds_path = '/data/public/tensorflow_datasets'
+#tfds_path = '~\\tensorflow_datasets'
 im_size = 32 #224
 
 gen_pipeline_train.ds_name = %ds_name
