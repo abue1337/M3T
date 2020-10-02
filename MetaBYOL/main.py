@@ -1,6 +1,6 @@
 import logging
 from model import input_fn, model_fn
-from MetaBYOL.model.maml import MAML
+from model.maml import MAML
 from utils import utils_params, utils_misc, utils_devices
 from model import classic_training
 import gin

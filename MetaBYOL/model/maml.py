@@ -46,7 +46,7 @@ class MAML():
               ):
 
         # Generate summary writer
-        meta_train_accuracy = tf.keras.metrics.CategoricalAccuracy(name='meta_train_accuracy')
+        meta_train_loss, meta_train_accuracy = define_metrics()
         writer = tf.summary.create_file_writer(os.path.dirname(run_paths['path_logs_train']))
         logging.info(f"Saving log to {os.path.dirname(run_paths['path_logs_train'])}")
 
@@ -87,10 +87,20 @@ class MAML():
             for train1_ep, train2_ep, test_ep, test_label_ep in ds_train:
                 start = time.time()
                 self.meta_train_step(train1_ep, train2_ep, test_ep, test_label_ep, meta_optimizer, tf_meta_batch_size,
-                                     meta_batch_size, meta_train_accuracy)
+                                     meta_batch_size, meta_train_accuracy,meta_train_loss)
 
                 stop = time.time()
-                logging.info(f"Time for one iteration {stop - start}")
+                # logging.info(f"Time for one iteration {stop - start}")
+
+            logging.info(f"Epoch {epoch}: acc = {meta_train_accuracy.result()}")
+            logging.info(f"Epoch {epoch}: loss = {meta_train_accuracy.result()}")
+            with writer.as_default():
+                tf.summary.scalar('Average meta test tasks accuracy', meta_train_accuracy.result(),
+                                  step=epoch)
+                tf.summary.scalar('Average meta test tasks accuracy', meta_train_loss.result(),
+                                  step=epoch)
+
+                reset_metrics(meta_train_loss, meta_train_accuracy)
         logging.info(f"Finished")
         return self.target_model
 
@@ -112,12 +122,13 @@ class MAML():
         return final_loss, test_predictions
 
     def meta_train_step(self, train1_ep, train2_ep, test_ep, test_label_ep, meta_optimizer, tf_meta_batch_size,
-                        meta_batch_size, meta_train_acc):
+                        meta_batch_size, meta_train_acc,meta_train_loss):
         with tf.GradientTape(persistent=False) as outer_tape:
             final_loss, test_predictions = self.func_help(train1_ep, train2_ep, test_ep, test_label_ep, meta_batch_size)
         outer_gradients = outer_tape.gradient(final_loss, self.target_model.trainable_variables)
         meta_optimizer.apply_gradients(zip(outer_gradients, self.target_model.trainable_variables))
         meta_train_acc(test_label_ep, test_predictions)
+        meta_train_loss(final_loss)
 
     # @tf.function
     def get_losses_of_tasks_batch(self, inputs):
@@ -136,7 +147,6 @@ class MAML():
 
         gradients = [tf.zeros(1) if v is None else v for v in gradients]
         for i in range(len(model_layers)):
-            logging.info(i)
             if isinstance(model_layers[i], tf.keras.layers.Conv2D) or \
                     isinstance(model_layers[i], tf.keras.layers.Dense):
                 updated_model_layers[i].kernel = model_layers[i].kernel - self.lr_inner_ml * gradients[k]
@@ -173,9 +183,6 @@ class MAML():
                         model_layers[i].beta - self.lr_inner_ml * gradients[k]
                     k += 1
                     variables.append(updated_model_layers[i].beta)
-            else:
-                logging.info('Layer could not be copied!')
-        logging.info(k)
         setattr(updated_model, 'meta_trainable_variables', variables)
 
     def inner_train_loop(self, train1_ep, train2_ep):
@@ -187,13 +194,13 @@ class MAML():
         # for i in range(0, len(self.target_model.weights)):
         #    self.updated_models[0].weights[i].assign(self.target_model.weights[i])
 
-        self.create_meta_model(self.updated_models[0], self.target_model,  # TODO: doesnt work with nested models!
+        self.create_meta_model(self.updated_models[0], self.target_model,
                                gradients)
         # TODO: Copy target model needs to be done for meta learning dependency
         #  but is differing from BYOL algorithm(both random initialized)
 
         tar1 = self.target_model(train1_ep, training=True, unsupervised_training=True)
-        tar2 = self.target_model(train2_ep, training=True, unsupervised_training=True)
+        tar2 = self.target_model(train2_ep, training=True, unsupervised_training=True) #TODO: Two ways for gradient? (online initialisation + target_model influences loss directly)
         for k in range(1, self.num_steps_ml + 1):
             with tf.GradientTape(persistent=False) as train_tape:
                 train_tape.watch(self.updated_models[k - 1].trainable_variables)
@@ -226,3 +233,30 @@ def flatten(l):
             yield from flatten(el.layers)
         else:
             yield el
+
+
+def define_metrics():
+    """
+    This function initializes metrics for training.
+
+    Returns:
+        train_loss: a tf.keras.losses-object
+        train_accuracy: tf.keras.metrics.BinaryAccuracy-object
+    """
+    train_loss = tf.keras.metrics.Mean(name='meta_train_loss')
+    #val_loss = tf.keras.metrics.Mean(name='val_loss')
+    train_accuracy = tf.keras.metrics.CategoricalAccuracy(name='meta_train_accuracy')
+    #val_accuracy = tf.keras.metrics.CategoricalAccuracy(name='val_accuracy')
+    return train_loss, train_accuracy
+
+
+def reset_metrics(train_loss, train_accuracy):
+    """
+    This function resets metrics after epoch during training.
+    Args:
+        train_loss: a tf.keras.losses-object
+        train_accuracy: tf.keras.metrics.BinaryAccuracy-object
+    Returns: Nothing
+    """
+    train_loss.reset_states()
+    train_accuracy.reset_states()
