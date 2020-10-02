@@ -216,7 +216,7 @@ class MAML():
             self.create_meta_model(self.updated_models[k], self.updated_models[k - 1], gradients)
             # for i in range(0, len(self.updated_models[k-1].weights)):
             #    self.updated_models[k].weights[i].assign(self.updated_models[k-1].weights[i]-self.lr_inner_ml*gradients)
-        return self.updated_models[-2]
+        return self.updated_models[-1]
 
     def loss_function(self, labels, predictions):
         return tf.keras.losses.categorical_crossentropy(labels, predictions)
