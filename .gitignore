@@ -3,3 +3,5 @@
 /experiments/
 
 .idea/
+
+MetaBYOL/model/__pycache__/

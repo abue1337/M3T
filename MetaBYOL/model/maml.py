@@ -35,9 +35,10 @@ class MAML():
             self.updated_models.append(updated_model)
         self.inner_optimizer = tf.keras.optimizers.Adam(learning_rate=self.lr_inner_ml)
 
-    @gin.configurable(blacklist=['ds_train', 'run_paths'])
+    @gin.configurable(blacklist=['ds_train', 'ds_val', 'run_paths'])
     def train(self,
               ds_train,
+              ds_val,
               run_paths,
               n_meta_epochs=10,
               meta_batch_size=4,
@@ -46,7 +47,7 @@ class MAML():
               ):
 
         # Generate summary writer
-        meta_train_loss, meta_train_accuracy = define_metrics()
+        meta_train_loss, meta_train_accuracy, meta_val_loss, meta_val_accuracy = define_metrics()
         writer = tf.summary.create_file_writer(os.path.dirname(run_paths['path_logs_train']))
         logging.info(f"Saving log to {os.path.dirname(run_paths['path_logs_train'])}")
 
@@ -65,12 +66,12 @@ class MAML():
             epoch_start = int(os.path.basename(ckpt_manager.latest_checkpoint).split('-')[1]) + 1
         else:
             logging.info("Initializing from scratch.")
-            epoch_start = 0
+            epoch_start = 1
 
         # Define Metrics
         metric_loss_train = ks.metrics.Mean()
 
-        logging.info(f"Training from epoch {epoch_start + 1} to {n_meta_epochs}.")
+        logging.info(f"Training from epoch {epoch_start} to {n_meta_epochs}.")
         # use tf variable for epoch passing - so no new trace is triggered if using normal range (instead of
         # tf.range) assign a epoch_tf tensor, otherwise function gets recreated every turn
         epoch_tf = tf.Variable(1, dtype=tf.int32)
@@ -80,27 +81,35 @@ class MAML():
 
             # assign tf variable, graph build doesn't get triggered again
             epoch_tf.assign(epoch)
-            logging.info(f"Epoch {epoch + 1}/{n_meta_epochs}: starting training.")
+            logging.info(f"Epoch {epoch}/{n_meta_epochs}: starting training.")
 
             tf_meta_batch_size = tf.Variable(1, dtype=tf.int32)
             tf_meta_batch_size.assign(meta_batch_size)
+
             for train1_ep, train2_ep, test_ep, test_label_ep in ds_train:
                 start = time.time()
                 self.meta_train_step(train1_ep, train2_ep, test_ep, test_label_ep, meta_optimizer, tf_meta_batch_size,
-                                     meta_batch_size, meta_train_accuracy,meta_train_loss)
+                                     meta_batch_size, meta_train_accuracy, meta_train_loss)
 
                 stop = time.time()
                 # logging.info(f"Time for one iteration {stop - start}")
+            for image, label in ds_val:
+                self.meta_val_step(image, label, meta_val_loss, meta_val_accuracy)
 
             logging.info(f"Epoch {epoch}: acc = {meta_train_accuracy.result()}")
+            logging.info(f"Epoch {epoch}: val_acc = {meta_val_accuracy.result()}")
             logging.info(f"Epoch {epoch}: loss = {meta_train_loss.result()}")
             with writer.as_default():
                 tf.summary.scalar('Average meta test tasks accuracy', meta_train_accuracy.result(),
                                   step=epoch)
-                tf.summary.scalar('Average meta test tasks accuracy', meta_train_loss.result(),
+                tf.summary.scalar('Average meta test tasks loss', meta_train_loss.result(),
+                                  step=epoch)
+                tf.summary.scalar('Average meta val accuracy', meta_val_accuracy.result(),
+                                  step=epoch)
+                tf.summary.scalar('Average meta val loss', meta_val_loss.result(),
                                   step=epoch)
 
-                reset_metrics(meta_train_loss, meta_train_accuracy)
+                reset_metrics(meta_train_loss, meta_train_accuracy, meta_val_loss, meta_val_accuracy)
         logging.info(f"Finished")
         return self.target_model
 
@@ -122,7 +131,7 @@ class MAML():
         return final_loss, test_predictions
 
     def meta_train_step(self, train1_ep, train2_ep, test_ep, test_label_ep, meta_optimizer, tf_meta_batch_size,
-                        meta_batch_size, meta_train_acc,meta_train_loss):
+                        meta_batch_size, meta_train_acc, meta_train_loss):
         with tf.GradientTape(persistent=False) as outer_tape:
             final_loss, test_predictions = self.func_help(train1_ep, train2_ep, test_ep, test_label_ep, meta_batch_size)
         outer_gradients = outer_tape.gradient(final_loss, self.target_model.trainable_variables)
@@ -200,7 +209,8 @@ class MAML():
         #  but is differing from BYOL algorithm(both random initialized)
 
         tar1 = self.target_model(train1_ep, training=True, unsupervised_training=True)
-        tar2 = self.target_model(train2_ep, training=True, unsupervised_training=True) #TODO: Two ways for gradient? (online initialisation + target_model influences loss directly)
+        tar2 = self.target_model(train2_ep, training=True,
+                                 unsupervised_training=True)
         for k in range(1, self.num_steps_ml + 1):
             with tf.GradientTape(persistent=False) as train_tape:
                 train_tape.watch(self.updated_models[k - 1].trainable_variables)
@@ -226,6 +236,15 @@ class MAML():
         y = tf.math.l2_normalize(y, axis=-1)
         return 2 - 2 * tf.math.reduce_sum(x * y, axis=-1)
 
+    @tf.function
+    def meta_val_step(self, images, labels, val_loss, val_acc):
+        predictions = self.target_model(images, training=False,
+                                        unsupervised_training=False)
+        loss = self.loss_function(labels, predictions)
+        val_loss(loss)
+        val_acc(labels, predictions)
+
+
 
 def flatten(l):
     for el in l:
@@ -244,19 +263,23 @@ def define_metrics():
         train_accuracy: tf.keras.metrics.BinaryAccuracy-object
     """
     train_loss = tf.keras.metrics.Mean(name='meta_train_loss')
-    #val_loss = tf.keras.metrics.Mean(name='val_loss')
+    val_loss = tf.keras.metrics.Mean(name='val_loss')
     train_accuracy = tf.keras.metrics.CategoricalAccuracy(name='meta_train_accuracy')
-    #val_accuracy = tf.keras.metrics.CategoricalAccuracy(name='val_accuracy')
-    return train_loss, train_accuracy
+    val_accuracy = tf.keras.metrics.CategoricalAccuracy(name='val_accuracy')
+    return train_loss, train_accuracy, val_loss, val_accuracy
 
 
-def reset_metrics(train_loss, train_accuracy):
+def reset_metrics(train_loss, train_accuracy, val_loss, val_accuracy):
     """
     This function resets metrics after epoch during training.
     Args:
         train_loss: a tf.keras.losses-object
         train_accuracy: tf.keras.metrics.BinaryAccuracy-object
+        val_loss: a tf.keras.losses-object
+        val_accuracy: tf.keras.metrics.BinaryAccuracy-object
     Returns: Nothing
     """
     train_loss.reset_states()
     train_accuracy.reset_states()
+    val_loss.reset_states()
+    val_accuracy.reset_states()

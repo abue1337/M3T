@@ -17,7 +17,8 @@ def gen_pipeline_train(ds_name='mnist',
                        augmentation='autoaug',
                        num_parallel_calls=10,
                        split=tfds.Split.TRAIN,
-                       finetuning=False):
+                       finetuning=False,
+                       validation_set=False):
 
     # Load and prepare tensorflow dataset
     data, info = tfds.load(name=ds_name,
@@ -33,6 +34,8 @@ def gen_pipeline_train(ds_name='mnist',
         label = tf.one_hot(label, info.features['label'].num_classes)
 
         # Cast image type and normalize to 0/1
+        if validation_set:
+            image = tf.cast(image, tf.float32) / 255.0
         if finetuning:
             image = tf.cast(image, tf.float32) / 255.0
             if augmentation == 'simclr':
@@ -85,16 +88,18 @@ def gen_pipeline_train(ds_name='mnist',
         dataset = dataset.shuffle(buffer_size=shuffle_buffer_size, reshuffle_each_iteration=True)
 
     # Map Augmentation
-    if not finetuning:
-        dataset = dataset.map(map_func=_map_augment, num_parallel_calls=num_parallel_calls)
-    if finetuning and split == 'train':
-        dataset = dataset.map(map_func=_map_augment_cifar10, num_parallel_calls=num_parallel_calls)
+    if not validation_set:
+        if not finetuning:
+            dataset = dataset.map(map_func=_map_augment, num_parallel_calls=num_parallel_calls)
+        if finetuning and split == 'train':
+            dataset = dataset.map(map_func=_map_augment_cifar10, num_parallel_calls=num_parallel_calls)
 
     # Batching
     dataset = dataset.batch(batch_size=size_batch,
                             drop_remainder=True)  # > 1.8.0: use drop_remainder=True
-    dataset = dataset.batch(batch_size=meta_batch_size,
-                            drop_remainder=True)  # > 1.8.0: use drop_remainder=True
+    if not validation_set:
+        dataset = dataset.batch(batch_size=meta_batch_size,
+                                drop_remainder=True)  # > 1.8.0: use drop_remainder=True
     if size_buffer_cpu > 0:
         dataset = dataset.prefetch(buffer_size=size_buffer_cpu)
 

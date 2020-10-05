@@ -44,7 +44,7 @@ train.meta_learning_rate = 0.001
 #Inner loop
 train.save_period = 1
 MAML.num_steps_ml = 1 #are more steps possible? tbd
-MAML.lr_inner_ml = 0.01
+MAML.lr_inner_ml = 0.001
 
 
 

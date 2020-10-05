@@ -40,8 +40,8 @@ class Architecture(tf.keras.Model):
                                                num_layers=num_layers, weight_decay=weight_decay)
         self.projector = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
                              weight_decay=weight_decay)
-        self.predictor = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
-                             weight_decay=weight_decay)
+        # self.predictor = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
+        #                     weight_decay=weight_decay)
         self.classifier = MLP(hidden_size=hidden_size, projection_size=10, momentum=0.9,
                               weight_decay=weight_decay)
 
@@ -53,10 +53,11 @@ class Architecture(tf.keras.Model):
         if unsupervised_training:
             features = self.encoder(features, training=training)
             features = self.projector(features, training=training)
-            if online:
-                features = self.predictor(features, training=training)
+            # if online:
+            #    features = self.predictor(features, training=training)
         else:
-            features = self.encoder(features, training=False)
+            features = self.encoder(features, training=training)
+            features = self.projector(features, training=training) #TODO: was added to have gradients for this layer
             features = tf.nn.softmax(self.classifier(features))
 
         return features
