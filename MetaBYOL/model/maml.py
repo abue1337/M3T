@@ -43,6 +43,7 @@ class MAML():
               n_meta_epochs=10,
               meta_batch_size=4,
               meta_learning_rate=0.001,
+              optimizer='Adam',
               save_period=1
               ):
 
@@ -52,7 +53,16 @@ class MAML():
         logging.info(f"Saving log to {os.path.dirname(run_paths['path_logs_train'])}")
 
         # Define optimizer
-        meta_optimizer = tf.keras.optimizers.Adam(learning_rate=meta_learning_rate)
+        if optimizer == 'Adam':
+            meta_optimizer = tf.keras.optimizers.Adam(learning_rate=meta_learning_rate)
+
+        elif optimizer == 'SGD':
+            learning_rate_schedule = ks.optimizers.schedules.PiecewiseConstantDecay(boundaries=[400, 32000, 48000],
+                                                                                    values=[meta_learning_rate, 0.1,
+                                                                                            0.01, 0.001])
+            meta_optimizer = ks.optimizers.SGD(learning_rate=learning_rate_schedule, momentum=0.9)
+
+
 
         # Define checkpoints and checkpoint manager
         # manager automatically handles model reloading if directory contains ckpts
@@ -108,6 +118,9 @@ class MAML():
                                   step=epoch)
                 tf.summary.scalar('Average meta val loss', meta_val_loss.result(),
                                   step=epoch)
+                tf.summary.scalar('Learning rate', learning_rate_schedule(meta_optimizer.iterations),
+                                  step=epoch)
+
 
                 reset_metrics(meta_train_loss, meta_train_accuracy, meta_val_loss, meta_val_accuracy)
         logging.info(f"Finished")
