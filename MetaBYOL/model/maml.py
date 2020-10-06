@@ -60,7 +60,7 @@ class MAML():
             overall_batchsize = ds_train._flat_shapes[0][0] * ds_train._flat_shapes[0][1]
             steps_per_epoch = round(50000 / overall_batchsize)
             learning_rate_schedule = ks.optimizers.schedules.PiecewiseConstantDecay(
-                boundaries=[steps_per_epoch, steps_per_epoch * 100, steps_per_epoch * 150],
+                boundaries=[steps_per_epoch, steps_per_epoch * 120, steps_per_epoch * 150],
                 values=[meta_learning_rate / 10,
                         meta_learning_rate,
                         meta_learning_rate / 10,
