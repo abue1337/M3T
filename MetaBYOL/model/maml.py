@@ -57,9 +57,9 @@ class MAML():
             meta_optimizer = tf.keras.optimizers.Adam(learning_rate=meta_learning_rate)
 
         elif optimizer == 'SGD':
-            learning_rate_schedule = ks.optimizers.schedules.PiecewiseConstantDecay(boundaries=[400, 32000, 48000],
-                                                                                    values=[meta_learning_rate, 0.1,
-                                                                                            0.01, 0.001])
+            learning_rate_schedule = ks.optimizers.schedules.PiecewiseConstantDecay(boundaries=[25, 2000, 3000],
+                                                                                    values=[meta_learning_rate/10, meta_learning_rate,
+                                                                                            meta_learning_rate/10, meta_learning_rate/100])
             meta_optimizer = ks.optimizers.SGD(learning_rate=learning_rate_schedule, momentum=0.9)
 
 

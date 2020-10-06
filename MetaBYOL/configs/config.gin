@@ -39,7 +39,7 @@ gen_model.num_layers = 20
 # MetaTraining parameters
 train.n_meta_epochs = 100
 train.meta_batch_size = %meta_batch_size
-train.meta_learning_rate = 0.01
+train.meta_learning_rate = 0.001
 train.optimizer = 'SGD'
 
 #Inner loop
