@@ -5,8 +5,8 @@ set_devices.soft_device_placement = False
 
 # Input Pipeline
 ds_name = 'cifar10'
-meta_batch_size = 4
-size_batch = 64
+meta_batch_size = 32
+size_batch = 16
 tfds_path = '/data/public/tensorflow_datasets'
 #tfds_path = '~\\tensorflow_datasets'
 im_size = 32 #224
@@ -39,7 +39,7 @@ gen_model.num_layers = 20
 # MetaTraining parameters
 train.n_meta_epochs = 100
 train.meta_batch_size = %meta_batch_size
-train.meta_learning_rate = 0.001
+train.meta_learning_rate = 0.01
 train.optimizer = 'SGD'
 
 #Inner loop

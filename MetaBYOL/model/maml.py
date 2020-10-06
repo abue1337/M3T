@@ -57,12 +57,20 @@ class MAML():
             meta_optimizer = tf.keras.optimizers.Adam(learning_rate=meta_learning_rate)
 
         elif optimizer == 'SGD':
-            learning_rate_schedule = ks.optimizers.schedules.PiecewiseConstantDecay(boundaries=[25, 2000, 3000],
-                                                                                    values=[meta_learning_rate/10, meta_learning_rate,
-                                                                                            meta_learning_rate/10, meta_learning_rate/100])
+            overall_batchsize = ds_train._flat_shapes[0][0] * ds_train._flat_shapes[0][1]
+            steps_per_epoch = round(50000 / overall_batchsize)
+            learning_rate_schedule = ks.optimizers.schedules.PiecewiseConstantDecay(
+                boundaries=[steps_per_epoch, steps_per_epoch * 100, steps_per_epoch * 150],
+                values=[meta_learning_rate / 10,
+                        meta_learning_rate,
+                        meta_learning_rate / 10,
+                        meta_learning_rate / 100])
+            """learning_rate_schedule = ks.optimizers.schedules.PiecewiseConstantDecay(boundaries=[25, 2000, 3000],
+                                                                                    values=[meta_learning_rate / 10,
+                                                                                            meta_learning_rate,
+                                                                                            meta_learning_rate / 10,
+                                                                                            meta_learning_rate / 100])"""
             meta_optimizer = ks.optimizers.SGD(learning_rate=learning_rate_schedule, momentum=0.9)
-
-
 
         # Define checkpoints and checkpoint manager
         # manager automatically handles model reloading if directory contains ckpts
@@ -120,7 +128,6 @@ class MAML():
                                   step=epoch)
                 tf.summary.scalar('Learning rate', learning_rate_schedule(meta_optimizer.iterations),
                                   step=epoch)
-
 
                 reset_metrics(meta_train_loss, meta_train_accuracy, meta_val_loss, meta_val_accuracy)
         logging.info(f"Finished")
@@ -256,7 +263,6 @@ class MAML():
         loss = self.loss_function(labels, predictions)
         val_loss(loss)
         val_acc(labels, predictions)
-
 
 
 def flatten(l):
