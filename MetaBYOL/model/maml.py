@@ -44,7 +44,7 @@ class MAML():
               meta_batch_size=4,
               meta_learning_rate=0.001,
               optimizer='Adam',
-              save_period=1
+              save_period=20
               ):
 
         # Generate summary writer
@@ -114,6 +114,11 @@ class MAML():
             for image, label in ds_val:
                 self.meta_val_step(image, label, meta_val_loss, meta_val_accuracy)
 
+            # Saving checkpoints
+            if (epoch % save_period == 0) | (epoch == n_meta_epochs):
+                logging.info(f'Saving checkpoint to {run_paths["path_ckpts_train"]}.')
+                ckpt_manager.save(checkpoint_number=epoch)
+
             logging.info(f"Epoch {epoch}: acc = {meta_train_accuracy.result()}")
             logging.info(f"Epoch {epoch}: val_acc = {meta_val_accuracy.result()}")
             logging.info(f"Epoch {epoch}: loss = {meta_train_loss.result()}")
@@ -131,6 +136,7 @@ class MAML():
 
                 reset_metrics(meta_train_loss, meta_train_accuracy, meta_val_loss, meta_val_accuracy)
         logging.info(f"Finished")
+
         return self.target_model
 
     @tf.function
