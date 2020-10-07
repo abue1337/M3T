@@ -22,6 +22,15 @@ gen_pipeline_train.shuffle_buffer_size = 50000
 gen_pipeline_train.num_parallel_calls = %num_cpu_threads
 gen_pipeline_train.augmentation = 'simclr' #'autoaug'
 
+gen_pipeline_test_time.augmentation = 'simclr' #'autoaug'
+gen_pipeline_test_time.shuffle_buffer_size = 10000
+gen_pipeline_test_time.dataset_cache = True
+gen_pipeline_test_time.ds_name = %ds_name
+gen_pipeline_test_time.tfds_path = %tfds_path
+gen_pipeline_test_time.size_buffer_cpu = 2
+gen_pipeline_test_time.num_parallel_calls = %num_cpu_threads
+
+
 crop_and_resize.imsize = %im_size
 resize_only.imsize = %im_size
 

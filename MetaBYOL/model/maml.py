@@ -270,6 +270,40 @@ class MAML():
         val_loss(loss)
         val_acc(labels, predictions)
 
+    def test(self,
+             ds_test,
+             run_paths
+             ):
+        meta_optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
+        ckpt = tf.train.Checkpoint(net=self.target_model, opt=meta_optimizer)
+        ckpt_manager = tf.train.CheckpointManager(ckpt, directory=run_paths['path_ckpts_train'],
+                                                  max_to_keep=2, keep_checkpoint_every_n_hours=1)
+        ckpt.restore(ckpt_manager.latest_checkpoint)
+
+        test_loss = tf.keras.metrics.Mean(name='test_loss')
+        test_accuracy = tf.keras.metrics.CategoricalAccuracy(name='test_accuracy')
+        updated_test_loss = tf.keras.metrics.Mean(name='updated_test_loss')
+        updated_test_accuracy = tf.keras.metrics.CategoricalAccuracy(name='updated_test_accuracy')
+        self.help_func_test(ds_test, test_loss, test_accuracy, updated_test_loss, updated_test_accuracy)
+        logging.info(
+            f"Test acc before gradient steps: {test_accuracy.result()} Test loss before gradient steps:{test_loss.result()}")
+        logging.info(
+            f"Test acc after gradient steps: {test_accuracy.result()} Test loss after gradient steps:{test_loss.result()}")
+
+    @tf.function
+    def help_func_test(self, ds_test, test_loss, test_accuracy, updated_test_loss, updated_test_accuracy):
+        for im1, im2, test_im, test_label in ds_test:
+            old_test_prediction = self.target_model(test_im, training=False,
+                                                    unsupervised_training=False)
+            loss = self.loss_function(test_label, old_test_prediction)
+            test_loss(loss)
+            test_accuracy(test_label, old_test_prediction)
+            updated_model = self.inner_train_loop(im1, im2)
+            new_test_prediction = updated_model(test_im, training=False,
+                                                unsupervised_training=False)
+            loss = self.loss_function(test_label, new_test_prediction)
+            updated_test_loss(loss)
+            updated_test_accuracy(test_label, new_test_prediction)
 
 def flatten(l):
     for el in l:

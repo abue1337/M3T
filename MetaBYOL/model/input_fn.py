@@ -104,3 +104,66 @@ def gen_pipeline_train(ds_name='mnist',
         dataset = dataset.prefetch(buffer_size=size_buffer_cpu)
 
     return dataset, info
+
+
+@gin.configurable
+def gen_pipeline_test_time(ds_name='mnist',
+                       tfds_path='~/tensorflow_datasets',
+                       size_batch=1,
+                       b_shuffle=True,
+                       size_buffer_cpu=5,
+                       shuffle_buffer_size=0,
+                       dataset_cache=False,
+                       augmentation='simclr',
+                       num_parallel_calls=10,
+                       split='test',
+                       ):
+
+    # Load and prepare tensorflow dataset
+    data, info = tfds.load(name=ds_name,
+                           data_dir=tfds_path,
+                           split=split,
+                           shuffle_files=False,
+                           with_info=True)
+    @tf.function
+    def _map_data(*args):
+        image = args[0]['image']
+        label = args[0]['label']
+        label = tf.one_hot(label, info.features['label'].num_classes)
+
+        return image, label
+
+    @tf.function
+    @tf.autograph.experimental.do_not_convert
+    def _map_test_time_augment(*args):
+        image = args[0]
+        label = args[1]
+        if augmentation == 'autoaug':
+            image1 = distort_image_with_autoaugment(image, 'cifar10')
+            image2 = distort_image_with_autoaugment(image, 'cifar10')
+            image1 = tf.cast(image1, tf.float32) / 255.0
+            image2 = tf.cast(image2, tf.float32) / 255.0
+            image3 = tf.cast(image, tf.float32) / 255.0
+        elif augmentation == 'simclr':
+            image1 = distort_simclr(image)
+            image2 = distort_simclr(image)
+            image3 = tf.cast(image, tf.float32) / 255.0
+
+        return image1, image2, image3, label
+
+    # Map data
+    dataset = data.map(map_func=_map_data, num_parallel_calls=num_parallel_calls)
+    # Cache data
+    if dataset_cache:
+        dataset = dataset.cache()
+    # Shuffle data
+    if b_shuffle:
+        if shuffle_buffer_size == 0:
+            shuffle_buffer_size = info.splits['train'].num_examples
+        dataset = dataset.shuffle(buffer_size=shuffle_buffer_size, reshuffle_each_iteration=True)
+    dataset = dataset.map(map_func=_map_test_time_augment, num_parallel_calls=num_parallel_calls)
+    # Batching
+    dataset = dataset.batch(batch_size=size_batch,
+                            drop_remainder=True)  # > 1.8.0: use drop_remainder=True
+
+    return dataset, info
