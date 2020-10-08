@@ -294,20 +294,24 @@ class MAML():
             f"Test acc before gradient steps: {test_accuracy.result()} Test loss before gradient steps:{test_loss.result()}")
         logging.info(
             f"Test acc after gradient steps: {updated_test_accuracy.result()} Test loss after gradient steps:{updated_test_loss.result()}")
-
+        updated_test_loss.reset_states()
+        updated_test_accuracy.reset_states()
+        test_loss.reset_states()
+        test_accuracy.reset_states()
     @tf.function
     def help_func_test(self, ds_test, test_loss, test_accuracy, updated_test_loss, updated_test_accuracy):
         for im1, im2, test_im, test_label in ds_test:
+        # for test_im, test_label in ds_test:
             old_test_prediction = self.target_model(test_im, training=False,
                                                     unsupervised_training=False)
-            loss = self.loss_function(test_label, old_test_prediction)
-            test_loss(loss)
+            loss1 = self.loss_function(test_label, old_test_prediction)
+            test_loss(loss1)
             test_accuracy(test_label, old_test_prediction)
             updated_model = self.inner_train_loop(im1, im2)
             new_test_prediction = updated_model(test_im, training=False,
                                                 unsupervised_training=False)
-            loss = self.loss_function(test_label, new_test_prediction)
-            updated_test_loss(loss)
+            loss2 = self.loss_function(test_label, new_test_prediction)
+            updated_test_loss(loss2)
             updated_test_accuracy(test_label, new_test_prediction)
 
 def flatten(l):

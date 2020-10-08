@@ -56,6 +56,29 @@ def gen_pipeline_train(ds_name='mnist',
         return image, label
 
     @tf.function
+    def _map_augment_cifar10(*inputs):
+        image, label = inputs
+
+        image = tf.image.random_flip_left_right(image)
+        IMG_SIZE = image.shape[0]  # CIFAR10: 32
+        # Add 4 pixels of padding
+        image = tf.image.resize_with_crop_or_pad(image, IMG_SIZE + 4, IMG_SIZE + 4)
+        # Random crop back to the original size
+        image = tf.image.random_crop(image, size=[IMG_SIZE, IMG_SIZE, 3])
+
+        return image, label
+
+    def _simple_augment(image):
+        image = tf.cast(image, tf.float32) / 255.
+        image = tf.image.random_flip_left_right(image)
+        IMG_SIZE = image.shape[0]  # CIFAR10: 32
+        # Add 4 pixels of padding
+        image = tf.image.resize_with_crop_or_pad(image, IMG_SIZE + 4, IMG_SIZE + 4)
+        # Random crop back to the original size
+        image = tf.image.random_crop(image, size=[IMG_SIZE, IMG_SIZE, 3])
+        return image
+
+    @tf.function
     @tf.autograph.experimental.do_not_convert
     def _map_augment(*args):
         image = args[0]
@@ -63,14 +86,16 @@ def gen_pipeline_train(ds_name='mnist',
         if augmentation =='autoaug':
             image1 = distort_image_with_autoaugment(image, 'cifar10')
             image2 = distort_image_with_autoaugment(image, 'cifar10')
-            image3 = distort_image_with_autoaugment(image, 'cifar10')
+            #image3 = distort_image_with_autoaugment(image, 'cifar10')
+            image3 = _simple_augment(image)
             image1 = tf.cast(image1, tf.float32) / 255.0
             image2 = tf.cast(image2, tf.float32) / 255.0
             image3 = tf.cast(image3, tf.float32) / 255.0
         elif augmentation == 'simclr':
             image1 = distort_simclr(image)
             image2 = distort_simclr(image)
-            image3 = distort_simclr(image)
+            #image3 = distort_simclr(image)
+            image3 = _simple_augment(image)
 
         return image1, image2, image3, label
 

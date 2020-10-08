@@ -54,7 +54,7 @@ train.optimizer = 'SGD'
 #Inner loop
 train.save_period = 20
 MAML.num_steps_ml = 4 #are more steps possible? tbd
-MAML.lr_inner_ml = 0.01
+MAML.lr_inner_ml = 0.001
 
 
 

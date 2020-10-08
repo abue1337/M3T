@@ -13,13 +13,15 @@ def set_up_eval(path_model_id='', run_paths=''):
     utils_misc.set_loggers(run_paths['path_logs_eval'], logging.INFO)
 
     ds_test, ds_test_info = input_fn.gen_pipeline_test_time(split='test')
+    #ds_test, ds_val_info = input_fn.gen_pipeline_train(split='test', validation_set=True)
+
 
     # Define model
     target_model = model_fn.gen_model
 
     maml = MAML(target_model, ds_test._flat_shapes[0][0:])
 
-    maml.test(ds_test,run_paths)
+    maml.test(ds_test, run_paths)
 
 
 
