@@ -293,7 +293,7 @@ class MAML():
         logging.info(
             f"Test acc before gradient steps: {test_accuracy.result()} Test loss before gradient steps:{test_loss.result()}")
         logging.info(
-            f"Test acc after gradient steps: {test_accuracy.result()} Test loss after gradient steps:{test_loss.result()}")
+            f"Test acc after gradient steps: {updated_test_accuracy.result()} Test loss after gradient steps:{updated_test_loss.result()}")
 
     @tf.function
     def help_func_test(self, ds_test, test_loss, test_accuracy, updated_test_loss, updated_test_accuracy):
