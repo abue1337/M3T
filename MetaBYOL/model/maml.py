@@ -95,7 +95,7 @@ class MAML():
         epoch_tf = tf.Variable(1, dtype=tf.int32)
 
         # Meta-Training
-        for epoch in range(epoch_start, int(n_meta_epochs)):
+        for epoch in range(epoch_start, int(n_meta_epochs+1)):
 
             # assign tf variable, graph build doesn't get triggered again
             epoch_tf.assign(epoch)
