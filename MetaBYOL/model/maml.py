@@ -12,16 +12,19 @@ import matplotlib.pyplot as plt
 
 
 # from model import input_fn, model_fn
-@gin.configurable(blacklist=['target_model', 'shape'])
+@gin.configurable(blacklist=['target_model', 'shape', 'test_time'])
 class MAML():
 
-    def __init__(self, target_model, shape, num_steps_ml, lr_inner_ml):
+    def __init__(self, target_model, shape, num_steps_ml, lr_inner_ml, lr_test_time, num_test_time_steps,
+                 test_time=False):
 
         self.target_model = target_model()
         self.num_steps_ml = num_steps_ml
         self.lr_inner_ml = lr_inner_ml
 
-        self.test_lr = lr_inner_ml
+        self.test_time = test_time
+        self.lr_test_time = lr_test_time
+        self.num_test_time_steps = num_test_time_steps
 
         self.input_shape = shape
         self.target_model(tf.zeros(shape=self.input_shape))
@@ -95,7 +98,7 @@ class MAML():
         epoch_tf = tf.Variable(1, dtype=tf.int32)
 
         # Meta-Training
-        for epoch in range(epoch_start, int(n_meta_epochs+1)):
+        for epoch in range(epoch_start, int(n_meta_epochs + 1)):
 
             # assign tf variable, graph build doesn't get triggered again
             epoch_tf.assign(epoch)
@@ -179,17 +182,20 @@ class MAML():
         variables = list()
         model_layers = list(flatten(model.layers))
         updated_model_layers = list(flatten(updated_model.layers))
-
+        if not self.test_time:
+            lr = self.lr_inner_ml
+        else:
+            lr = self.lr_test_time
         gradients = [tf.zeros(1) if v is None else v for v in gradients]
         for i in range(len(model_layers)):
             if isinstance(model_layers[i], tf.keras.layers.Conv2D) or \
                     isinstance(model_layers[i], tf.keras.layers.Dense):
-                updated_model_layers[i].kernel = model_layers[i].kernel - self.lr_inner_ml * gradients[k]
+                updated_model_layers[i].kernel = model_layers[i].kernel - lr * gradients[k]
                 k += 1
                 variables.append(updated_model_layers[i].kernel)
 
                 if not updated_model_layers[i].bias is None:
-                    updated_model_layers[i].bias = model_layers[i].bias - self.lr_inner_ml * gradients[k]
+                    updated_model_layers[i].bias = model_layers[i].bias - lr * gradients[k]
                     k += 1
                     variables.append(updated_model_layers[i].bias)
 
@@ -199,23 +205,23 @@ class MAML():
                 if hasattr(model_layers[i], 'moving_variance') and model_layers[i].moving_variance is not None:
                     updated_model_layers[i].moving_variance.assign(model_layers[i].moving_variance)
                 if hasattr(model_layers[i], 'gamma') and model_layers[i].gamma is not None:
-                    updated_model_layers[i].gamma = model_layers[i].gamma - self.lr_inner_ml * gradients[k]
+                    updated_model_layers[i].gamma = model_layers[i].gamma - lr * gradients[k]
                     k += 1
                     variables.append(updated_model_layers[i].gamma)
                 if hasattr(model_layers[i], 'beta') and model_layers[i].beta is not None:
                     updated_model_layers[i].beta = \
-                        model_layers[i].beta - self.lr_inner_ml * gradients[k]
+                        model_layers[i].beta - lr * gradients[k]
                     k += 1
                     variables.append(updated_model_layers[i].beta)
 
             elif isinstance(model_layers[i], tf.keras.layers.LayerNormalization):
                 if hasattr(model_layers[i], 'gamma') and model_layers[i].gamma is not None:
-                    updated_model_layers[i].gamma = model_layers[i].gamma - self.lr_inner_ml * gradients[k]
+                    updated_model_layers[i].gamma = model_layers[i].gamma - lr * gradients[k]
                     k += 1
                     variables.append(updated_model_layers[i].gamma)
                 if hasattr(model_layers[i], 'beta') and model_layers[i].beta is not None:
                     updated_model_layers[i].beta = \
-                        model_layers[i].beta - self.lr_inner_ml * gradients[k]
+                        model_layers[i].beta - lr * gradients[k]
                     k += 1
                     variables.append(updated_model_layers[i].beta)
         setattr(updated_model, 'meta_trainable_variables', variables)
@@ -226,13 +232,8 @@ class MAML():
         for variable in self.target_model.trainable_variables:
             gradients.append(tf.zeros_like(variable))
 
-        # for i in range(0, len(self.target_model.weights)):
-        #    self.updated_models[0].weights[i].assign(self.target_model.weights[i])
-
         self.create_meta_model(self.updated_models[0], self.target_model,
                                gradients)
-        # TODO: Copy target model needs to be done for meta learning dependency
-        #  but is differing from BYOL algorithm(both random initialized)
 
         tar1 = self.target_model(train1_ep, training=True, unsupervised_training=True)
         tar2 = self.target_model(train2_ep, training=True,
@@ -248,10 +249,9 @@ class MAML():
                 loss2 = self.byol_loss_fn(prediction2, tf.stop_gradient(tar1))
                 loss = tf.reduce_mean(loss1 + loss2)
             gradients = train_tape.gradient(loss, self.updated_models[k - 1].meta_trainable_variables)
-            # self.inner_optimizer.apply_gradients(zip(gradients, self.updated_models[k-1].trainable_variables))
+
             self.create_meta_model(self.updated_models[k], self.updated_models[k - 1], gradients)
-            # for i in range(0, len(self.updated_models[k-1].weights)):
-            #    self.updated_models[k].weights[i].assign(self.updated_models[k-1].weights[i]-self.lr_inner_ml*gradients)
+
         return self.updated_models[-1]
 
     def loss_function(self, labels, predictions):
@@ -285,34 +285,60 @@ class MAML():
         else:
             logging.info("Initializing from scratch.")
             epoch_start = 1
-        test_loss = tf.keras.metrics.Mean(name='test_loss')
-        test_accuracy = tf.keras.metrics.CategoricalAccuracy(name='test_accuracy')
-        updated_test_loss = tf.keras.metrics.Mean(name='updated_test_loss')
-        updated_test_accuracy = tf.keras.metrics.CategoricalAccuracy(name='updated_test_accuracy')
-        self.help_func_test(ds_test, test_loss, test_accuracy, updated_test_loss, updated_test_accuracy)
-        logging.info(
-            f"Test acc before gradient steps: {test_accuracy.result()} Test loss before gradient steps:{test_loss.result()}")
-        logging.info(
-            f"Test acc after gradient steps: {updated_test_accuracy.result()} Test loss after gradient steps:{updated_test_loss.result()}")
-        updated_test_loss.reset_states()
-        updated_test_accuracy.reset_states()
+        test_loss, test_accuracy = define_metrics_test()
+        # num_steps = tf.Variable(0, dtype=tf.int32)
+        # num_steps.assign(grad_steps)
+        for im1, im2, test_im, test_label in ds_test:
+            self.help_func_test(im1, im2, test_im, test_label, test_loss, test_accuracy)
+
+        logging.info(f"Test acc after {self.num_test_time_steps} gradient steps: {test_accuracy.result()} Test loss after "
+                     f"{self.num_test_time_steps} gradient steps:{test_loss.result()}")
         test_loss.reset_states()
         test_accuracy.reset_states()
+
+
     @tf.function
-    def help_func_test(self, ds_test, test_loss, test_accuracy, updated_test_loss, updated_test_accuracy):
-        for im1, im2, test_im, test_label in ds_test:
-        # for test_im, test_label in ds_test:
-            old_test_prediction = self.target_model(test_im, training=False,
-                                                    unsupervised_training=False)
-            loss1 = self.loss_function(test_label, old_test_prediction)
-            test_loss(loss1)
-            test_accuracy(test_label, old_test_prediction)
-            updated_model = self.inner_train_loop(im1, im2)
-            new_test_prediction = updated_model(test_im, training=False,
-                                                unsupervised_training=False)
-            loss2 = self.loss_function(test_label, new_test_prediction)
-            updated_test_loss(loss2)
-            updated_test_accuracy(test_label, new_test_prediction)
+    def help_func_test(self, im1, im2, test_im, test_label, test_loss, test_accuracy):
+        updated_model = self.test_time_loop(im1, im2)
+        test_prediction = updated_model(test_im, training=False, unsupervised_training=False)
+        loss = self.loss_function(test_label, test_prediction)
+        test_loss(loss)
+        test_accuracy(test_label, test_prediction)
+
+    def test_time_loop(self, train1_ep, train2_ep):
+
+        gradients = list()
+        for variable in self.target_model.trainable_variables:
+            gradients.append(tf.zeros_like(variable))
+
+        self.create_meta_model(self.updated_models[0], self.target_model,
+                               gradients)
+
+        tar1 = self.target_model(train1_ep, training=False, unsupervised_training=True)
+        tar2 = self.target_model(train2_ep, training=False,
+                                 unsupervised_training=True)
+        k=0
+        for k in range(1, self.num_test_time_steps+1):
+            with tf.GradientTape(persistent=False) as test_time_tape:
+                test_time_tape.watch(self.updated_models[k - 1].trainable_variables)
+                prediction1 = self.updated_models[k - 1](train1_ep, training=False, unsupervised_training=True,
+                                                         online=True)
+                prediction2 = self.updated_models[k - 1](train2_ep, training=False, unsupervised_training=True,
+                                                         online=True)
+                loss1 = self.byol_loss_fn(prediction1, tf.stop_gradient(tar2))
+                loss2 = self.byol_loss_fn(prediction2, tf.stop_gradient(tar1))
+                loss = tf.reduce_mean(loss1 + loss2)
+            gradients = test_time_tape.gradient(loss, self.updated_models[k - 1].meta_trainable_variables)
+            self.create_meta_model(self.updated_models[k], self.updated_models[k - 1], gradients)
+
+        return self.updated_models[k]
+
+
+def define_metrics_test():
+    test_loss = tf.keras.metrics.Mean(name='test_loss_')
+    test_accuracy = tf.keras.metrics.CategoricalAccuracy(name='test_accuracy_')
+    return test_loss, test_accuracy
+
 
 def flatten(l):
     for el in l:
@@ -335,6 +361,8 @@ def define_metrics():
     train_accuracy = tf.keras.metrics.CategoricalAccuracy(name='meta_train_accuracy')
     val_accuracy = tf.keras.metrics.CategoricalAccuracy(name='val_accuracy')
     return train_loss, train_accuracy, val_loss, val_accuracy
+
+
 
 
 def reset_metrics(train_loss, train_accuracy, val_loss, val_accuracy):

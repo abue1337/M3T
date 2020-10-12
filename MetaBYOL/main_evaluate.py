@@ -19,7 +19,7 @@ def set_up_eval(path_model_id='', run_paths=''):
     # Define model
     target_model = model_fn.gen_model
 
-    maml = MAML(target_model, ds_test._flat_shapes[0][0:])
+    maml = MAML(target_model, ds_test._flat_shapes[0][0:], test_time=True)
 
     maml.test(ds_test, run_paths)
 

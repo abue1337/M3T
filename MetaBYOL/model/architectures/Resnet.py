@@ -95,14 +95,14 @@ class Architecture(models.Model):
                                                   batch_norm_center,
                                                   batch_norm_scale,
                                                   name='batchnorm_10')
-        self._last_conv = layers.Conv2D(self._num_initial_filters*4*4, 1, 1, 'same', use_bias=False,
-                                        kernel_regularizer=self._kernel_regularizer, name='init_conv') # Last conv has 4 times the filters of layer before
-        self._last_bn2 = layers.BatchNormalization(-1,
-                                                  batch_norm_momentum,
-                                                  batch_norm_epsilon,
-                                                  batch_norm_center,
-                                                  batch_norm_scale,
-                                                  name='batchnorm_20')
+        # self._last_conv = layers.Conv2D(self._num_initial_filters*4*4, 1, 1, 'same', use_bias=False,
+        #                                 kernel_regularizer=self._kernel_regularizer, name='init_conv') # Last conv has 4 times the filters of layer before
+        # self._last_bn2 = layers.BatchNormalization(-1,
+        #                                           batch_norm_momentum,
+        #                                           batch_norm_epsilon,
+        #                                           batch_norm_center,
+        #                                           batch_norm_scale,
+        #                                           name='batchnorm_20')
         #self._mlp_dense_out = tf.keras.layers.Dense(n_classes, use_bias=False, name="Head_Dense",activation='softmax')
 
     def call(self, inputs, training=False):
@@ -120,7 +120,7 @@ class Architecture(models.Model):
         h = self._block2(h, training=training)
         h = self._block3(h, training=training)
         h = tf.nn.relu(self._last_bn(h, training=training))
-        h = tf.nn.relu(self._last_bn2(self._last_conv(h),training=training))
+        #h = tf.nn.relu(self._last_bn2(self._last_conv(h),training=training))
         h = self._global_avg(h)
 
         # For simclr v2:
