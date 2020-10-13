@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 @gin.configurable(blacklist=['target_model', 'shape', 'test_time'])
 class MAML():
 
-    def __init__(self, target_model, shape, num_steps_ml, lr_inner_ml, lr_test_time, num_test_time_steps,
+    def __init__(self, target_model, shape, num_steps_ml, lr_inner_ml, lr_test_time,
                  test_time=False):
 
         self.target_model = target_model()
@@ -24,7 +24,9 @@ class MAML():
 
         self.test_time = test_time
         self.lr_test_time = lr_test_time
-        self.num_test_time_steps = num_test_time_steps
+        self.num_test_time_steps = 0
+        self.losses = list()
+        self.accuracies = list()
 
         self.input_shape = shape
         self.target_model(tf.zeros(shape=self.input_shape))
@@ -293,8 +295,11 @@ class MAML():
 
         logging.info(f"Test acc after {self.num_test_time_steps} gradient steps: {test_accuracy.result()} Test loss after "
                      f"{self.num_test_time_steps} gradient steps:{test_loss.result()}")
+        self.losses.append(test_loss.result())
+        self.accuracies.append(test_accuracy.result())
         test_loss.reset_states()
         test_accuracy.reset_states()
+
 
 
     @tf.function
@@ -322,7 +327,7 @@ class MAML():
             with tf.GradientTape(persistent=False) as test_time_tape:
                 test_time_tape.watch(self.updated_models[k - 1].trainable_variables)
                 prediction1 = self.updated_models[k - 1](train1_ep, training=False, unsupervised_training=True,
-                                                         online=True)
+                                                         online=True)  # TODO: Meaningful if domain changed singificantly?
                 prediction2 = self.updated_models[k - 1](train2_ep, training=False, unsupervised_training=True,
                                                          online=True)
                 loss1 = self.byol_loss_fn(prediction1, tf.stop_gradient(tar2))

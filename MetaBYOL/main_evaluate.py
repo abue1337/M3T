@@ -1,13 +1,14 @@
 import logging
 from model import input_fn, model_fn
 from model.maml import MAML
-from utils import utils_params, utils_misc, utils_devices
+from utils import utils_params, utils_misc, utils_devices, utils_plots
 import tensorflow_datasets as tfds
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import gin
 
-def set_up_eval(path_model_id='', run_paths=''):
+@gin.configurable()
+def set_up_eval(num_test_time_steps, path_model_id='', run_paths=''):
 
     # set loggers
     utils_misc.set_loggers(run_paths['path_logs_eval'], logging.INFO)
@@ -21,7 +22,13 @@ def set_up_eval(path_model_id='', run_paths=''):
 
     maml = MAML(target_model, ds_test._flat_shapes[0][0:], test_time=True)
 
-    maml.test(ds_test, run_paths)
+    for a in range(num_test_time_steps+1):
+        maml.num_test_time_steps = a
+        maml.test(ds_test, run_paths)
+    for i in range(num_test_time_steps+1):
+        logging.info(
+            f"Test acc after {i} gradient steps: {maml.accuracies[i]} Test loss after "
+            f"{i} gradient steps:{maml.losses[i]}")
 
 
 
@@ -42,5 +49,5 @@ def eval_main(path_model_id='', bindings=[], inject_gin=True):
 
 
 if __name__ == '__main__':
-    path_model_id = 'C:\\Users\\andre\\Desktop\\experiments\\models\\run_2020-10-07T12-59-03'
+    path_model_id = 'C:\\Users\\andre\\Desktop\\experiments\\models\\run_2020-10-12T09-46-01'
     eval_main(path_model_id=path_model_id)
