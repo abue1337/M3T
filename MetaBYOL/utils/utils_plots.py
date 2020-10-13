@@ -10,3 +10,16 @@ def plot_omniglot_img(img):
     else:
         plt.imshow(img[:, :, 0])
         plt.show()
+
+def plot_img(img):
+    #plt.gray()
+    if img.ndim == 4:
+        for i in range(img.shape[0]):
+            plt.imshow(img[i, :, :, :])
+            plt.show()
+    else:
+        plt.imshow(img[:, :, :])
+        plt.show()
+
+def plot_test_time_behaviour(losses, accuracies):
+    plt.plot(range(te))
