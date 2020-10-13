@@ -100,6 +100,25 @@ def gen_pipeline_train(ds_name='mnist',
 
         return image1, image2, image3, label
 
+    def add_gaussian_noise(image, stddev):
+        # image must be scaled in [0, 1]
+
+        noise = tf.random.normal(shape=tf.shape(image), mean=0.0, stddev=stddev, dtype=tf.float32) #stddev=0.01
+        noise_img = tf.add(image, noise)
+        noise_img = tf.clip_by_value(noise_img, 0.0, 1.0)
+        return noise_img
+
+    def _batch_specific_aug(*args):
+        stddev = tf.random.uniform((1,),0,1,dtype=tf.float32)
+        img1 = add_gaussian_noise(args[0], stddev)
+        img2 = add_gaussian_noise(args[1], stddev)
+        img3 = add_gaussian_noise(args[2], stddev)
+        label = args[3]
+        return img1,img2,img3,label
+
+
+
+
     # Map data
     dataset = data.map(map_func=_map_data, num_parallel_calls=num_parallel_calls)
 
@@ -123,6 +142,9 @@ def gen_pipeline_train(ds_name='mnist',
     # Batching
     dataset = dataset.batch(batch_size=size_batch,
                             drop_remainder=True)  # > 1.8.0: use drop_remainder=True
+
+    dataset = dataset.map(map_func=_batch_specific_aug, num_parallel_calls=num_parallel_calls)
+
     if not validation_set:
         dataset = dataset.batch(batch_size=meta_batch_size,
                                 drop_remainder=True)  # > 1.8.0: use drop_remainder=True
