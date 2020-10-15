@@ -35,6 +35,6 @@ def plot_test_time_behaviour(losses, accuracies, run_paths):
     ax2.set_ylabel('Test accuracy')
     ax2.set_xlabel('Number of gradient steps')
     my_path = os.path.dirname(run_paths['path_graphs_eval'])
-    my_file = f'graphs/Test_time_behaviour.png'
+    my_file = 'Test_time_behaviour.png'
     plt.savefig(os.path.join(my_path, my_file))
     plt.show()

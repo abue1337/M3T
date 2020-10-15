@@ -50,5 +50,5 @@ def eval_main(path_model_id='', bindings=[], inject_gin=True):
 
 
 if __name__ == '__main__':
-    path_model_id = 'C:\\Users\\andre\\Desktop\\experiments\\models\\run_2020-10-12T09-46-01'
+    path_model_id = 'C:\\Users\\andre\\Desktop\\experiments\\models\\batch_spec_aug\\run_2020-10-13T18-56-10'
     eval_main(path_model_id=path_model_id)

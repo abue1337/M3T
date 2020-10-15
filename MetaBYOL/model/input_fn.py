@@ -20,7 +20,6 @@ def gen_pipeline_train(ds_name='mnist',
                        split=tfds.Split.TRAIN,
                        finetuning=False,
                        validation_set=False):
-
     # Load and prepare tensorflow dataset
     data, info = tfds.load(name=ds_name,
                            data_dir=tfds_path,
@@ -84,10 +83,10 @@ def gen_pipeline_train(ds_name='mnist',
     def _map_augment(*args):
         image = args[0]
         label = args[1]
-        if augmentation =='autoaug':
+        if augmentation == 'autoaug':
             image1 = distort_image_with_autoaugment(image, 'cifar10')
             image2 = distort_image_with_autoaugment(image, 'cifar10')
-            #image3 = distort_image_with_autoaugment(image, 'cifar10')
+            # image3 = distort_image_with_autoaugment(image, 'cifar10')
             image3 = _simple_augment(image)
             image1 = tf.cast(image1, tf.float32) / 255.0
             image2 = tf.cast(image2, tf.float32) / 255.0
@@ -95,29 +94,47 @@ def gen_pipeline_train(ds_name='mnist',
         elif augmentation == 'simclr':
             image1 = distort_simclr(image)
             image2 = distort_simclr(image)
-            #image3 = distort_simclr(image)
+            # image3 = distort_simclr(image)
             image3 = _simple_augment(image)
 
         return image1, image2, image3, label
 
-    def add_gaussian_noise(image, stddev):
+    def batch_augmentation(image, stddev, flip_ud, flip_rl, brightness, blur):
         # image must be scaled in [0, 1]
 
-        noise = tf.random.normal(shape=tf.shape(image), mean=0.0, stddev=stddev, dtype=tf.float32) # stddev=0.01
+        # flip up/down
+        if flip_ud == 1:
+            image = tf.image.flip_up_down(image)
+
+        # flip right/left
+        if flip_rl == 1:
+            image = tf.image.flip_left_right(image)
+
+        # gaussian blur
+        if blur == 1:
+            image = tfa.image.filters.gaussian_filter2d(image)
+
+        # brightness
+        image = tf.image.adjust_brightness(image, brightness)
+
+        # gaussian noise
+        noise = tf.random.normal(shape=tf.shape(image), mean=0.0, stddev=stddev, dtype=tf.float32)  # stddev=0.01
         noise_img = tf.add(image, noise)
         noise_img = tf.clip_by_value(noise_img, 0.0, 1.0)
         return noise_img
 
     def _batch_specific_aug(*args):
-        stddev = tf.random.uniform((1,), 0, 0.1, dtype=tf.float32)
-        img1 = add_gaussian_noise(args[0], stddev)
-        img2 = add_gaussian_noise(args[1], stddev)
-        img3 = add_gaussian_noise(args[2], stddev)
+        #TODO: Add contrast?
+        stddev = tf.random.uniform((1,), 0, 0.02, dtype=tf.float32)
+        flip_ud = tf.random.uniform((1,), 0, 2, dtype=tf.int32)
+        flip_rl = tf.random.uniform((1,), 0, 2, dtype=tf.int32)
+        blur = tf.random.uniform((1,), 0, 2, dtype=tf.int32)
+        brightness = tf.random.uniform((1,), -0.2, 0.2, dtype=tf.float32)
+        img1 = batch_augmentation(args[0], stddev, flip_ud, flip_rl, brightness, blur)
+        img2 = batch_augmentation(args[1], stddev, flip_ud, flip_rl, brightness, blur)
+        img3 = batch_augmentation(args[2], stddev, flip_ud, flip_rl, brightness, blur)
         label = args[3]
         return img1, img2, img3, label
-
-
-
 
     # Map data
     dataset = data.map(map_func=_map_data, num_parallel_calls=num_parallel_calls)
@@ -143,7 +160,8 @@ def gen_pipeline_train(ds_name='mnist',
     dataset = dataset.batch(batch_size=size_batch,
                             drop_remainder=True)  # > 1.8.0: use drop_remainder=True
 
-    dataset = dataset.map(map_func=_batch_specific_aug, num_parallel_calls=num_parallel_calls)
+    if not validation_set:
+        dataset = dataset.map(map_func=_batch_specific_aug, num_parallel_calls=num_parallel_calls)
 
     if not validation_set:
         dataset = dataset.batch(batch_size=meta_batch_size,
@@ -156,23 +174,23 @@ def gen_pipeline_train(ds_name='mnist',
 
 @gin.configurable
 def gen_pipeline_test_time(ds_name='mnist',
-                       tfds_path='~/tensorflow_datasets',
-                       size_batch=16,
-                       b_shuffle=True,
-                       size_buffer_cpu=5,
-                       shuffle_buffer_size=0,
-                       dataset_cache=False,
-                       augmentation='simclr',
-                       num_parallel_calls=10,
-                       split='test',
-                       ):
-
+                           tfds_path='~/tensorflow_datasets',
+                           size_batch=8,
+                           b_shuffle=True,
+                           size_buffer_cpu=5,
+                           shuffle_buffer_size=0,
+                           dataset_cache=False,
+                           augmentation='simclr',
+                           num_parallel_calls=10,
+                           split='test',
+                           ):
     # Load and prepare tensorflow dataset
     data, info = tfds.load(name=ds_name,
                            data_dir=tfds_path,
                            split=split,
                            shuffle_files=False,
                            with_info=True)
+
     @tf.function
     def _map_data(*args):
         image = args[0]['image']
@@ -192,17 +210,16 @@ def gen_pipeline_test_time(ds_name='mnist',
             image1 = tf.cast(image1, tf.float32) / 255.0
             image2 = tf.cast(image2, tf.float32) / 255.0
             image3 = tf.cast(image, tf.float32) / 255.0
-            image3 = add_gaussian_noise(image3)
+            #image3 = add_gaussian_noise(image3)
         elif augmentation == 'simclr':
             image1 = distort_simclr(image)
             image2 = distort_simclr(image)
             image3 = tf.cast(image, tf.float32) / 255.0
-            #image3 = add_gaussian_noise(image3)
+            # image3 = add_gaussian_noise(image3)
         return image1, image2, image3, label
 
     def add_gaussian_noise(image):
         # image must be scaled in [0, 1]
-
         noise = tf.random.normal(shape=tf.shape(image), mean=0.0, stddev=0.01, dtype=tf.float32)
         noise_img = tf.add(image, noise)
         noise_img = tf.clip_by_value(noise_img, 0.0, 1.0)
