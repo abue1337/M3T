@@ -5,8 +5,8 @@ set_devices.soft_device_placement = False
 
 # Input Pipeline
 ds_name = 'cifar10'
-meta_batch_size = 32
-size_batch = 32
+meta_batch_size = 64
+size_batch = 8
 tfds_path = '/data/public/tensorflow_datasets'
 #tfds_path = '~\\tensorflow_datasets'
 im_size = 32 #224
@@ -25,7 +25,7 @@ gen_pipeline_train.augmentation = 'simclr' #'autoaug'
 gen_pipeline_test_time.augmentation = 'simclr' #'autoaug'
 gen_pipeline_test_time.shuffle_buffer_size = 10000
 gen_pipeline_test_time.dataset_cache = True
-gen_pipeline_test_time.ds_name = 'cifar10_1'#'cifar10_corrupted/gaussian_noise_5' #%ds_name
+gen_pipeline_test_time.ds_name = %ds_name #'cifar10_corrupted/snow_5' #'cifar10_1'#%ds_name
 gen_pipeline_test_time.tfds_path = %tfds_path
 gen_pipeline_test_time.size_buffer_cpu = 2
 gen_pipeline_test_time.num_parallel_calls = %num_cpu_threads
@@ -48,16 +48,22 @@ gen_model.num_layers = 20
 # MetaTraining parameters
 train.n_meta_epochs = 200
 train.meta_batch_size = %meta_batch_size
-train.meta_learning_rate = 0.01
+train.meta_learning_rate = 0.1
 train.optimizer = 'SGD'
+
+# Batch specific augmentation
+batch_augmentation.flip_ud_rate = 0.5
+batch_augmentation.flip_rl_rate = 0.5
+batch_augmentation.blur_rate = 0.2
 
 #Inner loop
 train.save_period = 20
-MAML.num_steps_ml = 5 #are more steps possible? tbd
+MAML.num_steps_ml = 4 #are more steps possible? tbd
 MAML.lr_inner_ml = 0.1
 
 #Test Time Training
 MAML.lr_test_time = 0.1
+
 
 
 

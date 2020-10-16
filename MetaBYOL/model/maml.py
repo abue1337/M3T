@@ -295,8 +295,8 @@ class MAML():
 
         logging.info(f"Test acc after {self.num_test_time_steps} gradient steps: {test_accuracy.result()} Test loss after "
                      f"{self.num_test_time_steps} gradient steps:{test_loss.result()}")
-        self.losses.append(test_loss.result())
-        self.accuracies.append(test_accuracy.result())
+        self.losses.append(test_loss.result().numpy())
+        self.accuracies.append(test_accuracy.result().numpy())
         test_loss.reset_states()
         test_accuracy.reset_states()
 

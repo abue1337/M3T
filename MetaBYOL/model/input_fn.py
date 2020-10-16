@@ -99,36 +99,15 @@ def gen_pipeline_train(ds_name='mnist',
 
         return image1, image2, image3, label
 
-    def batch_augmentation(image, stddev, flip_ud, flip_rl, brightness, blur):
-        # image must be scaled in [0, 1]
 
-        # flip up/down
-        if flip_ud == 1:
-            image = tf.image.flip_up_down(image)
-
-        # flip right/left
-        if flip_rl == 1:
-            image = tf.image.flip_left_right(image)
-
-        # gaussian blur
-        if blur == 1:
-            image = tfa.image.filters.gaussian_filter2d(image)
-
-        # brightness
-        image = tf.image.adjust_brightness(image, brightness)
-
-        # gaussian noise
-        noise = tf.random.normal(shape=tf.shape(image), mean=0.0, stddev=stddev, dtype=tf.float32)  # stddev=0.01
-        noise_img = tf.add(image, noise)
-        noise_img = tf.clip_by_value(noise_img, 0.0, 1.0)
-        return noise_img
 
     def _batch_specific_aug(*args):
         #TODO: Add contrast?
+
         stddev = tf.random.uniform((1,), 0, 0.02, dtype=tf.float32)
-        flip_ud = tf.random.uniform((1,), 0, 2, dtype=tf.int32)
-        flip_rl = tf.random.uniform((1,), 0, 2, dtype=tf.int32)
-        blur = tf.random.uniform((1,), 0, 2, dtype=tf.int32)
+        flip_ud = tf.random.uniform([], 0, 1)
+        flip_rl = tf.random.uniform([], 0, 1)
+        blur = tf.random.uniform([], 0, 1)
         brightness = tf.random.uniform((1,), -0.2, 0.2, dtype=tf.float32)
         img1 = batch_augmentation(args[0], stddev, flip_ud, flip_rl, brightness, blur)
         img2 = batch_augmentation(args[1], stddev, flip_ud, flip_rl, brightness, blur)
@@ -241,3 +220,28 @@ def gen_pipeline_test_time(ds_name='mnist',
                             drop_remainder=True)  # > 1.8.0: use drop_remainder=True
 
     return dataset, info
+
+@gin.configurable
+def batch_augmentation(image, stddev, flip_ud, flip_rl, brightness, blur, flip_ud_rate, flip_rl_rate, blur_rate):
+    # image must be scaled in [0, 1]
+
+    # flip up/down
+    if flip_ud < flip_ud_rate:
+        image = tf.image.flip_up_down(image)
+
+    # flip right/left
+    if flip_rl < flip_rl_rate:
+        image = tf.image.flip_left_right(image)
+
+    # gaussian blur
+    if blur < blur_rate:
+        image = tfa.image.filters.gaussian_filter2d(image)
+
+    # brightness
+    image = tf.image.adjust_brightness(image, brightness)
+
+    # gaussian noise
+    noise = tf.random.normal(shape=tf.shape(image), mean=0.0, stddev=stddev, dtype=tf.float32)  # stddev=0.01
+    noise_img = tf.add(image, noise)
+    noise_img = tf.clip_by_value(noise_img, 0.0, 1.0)
+    return noise_img

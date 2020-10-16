@@ -1,7 +1,7 @@
 import logging
 from model import input_fn, model_fn
 from model.maml import MAML
-from utils import utils_params, utils_misc, utils_devices, utils_plots
+from utils import utils_params, utils_misc, utils_devices, utils_plots, utils_read_write
 import tensorflow_datasets as tfds
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -29,7 +29,8 @@ def set_up_eval( path_model_id='', run_paths=''):
         logging.info(
             f"Test acc after {i} gradient steps: {maml.accuracies[i]} Test loss after "
             f"{i} gradient steps:{maml.losses[i]}")
-    utils_plots.plot_test_time_behaviour(maml.losses, maml.accuracies, run_paths)
+    #utils_plots.plot_test_time_behaviour(maml.losses, maml.accuracies, run_paths)
+    utils_read_write.write_loss_acc_to_file(run_paths, maml.losses, maml.accuracies)
 
 
 
