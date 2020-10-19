@@ -43,6 +43,7 @@ gen_model.projection_size = 256    #256 (byol imagenet implementation)
 gen_model.base_model = 'resnet20'
 gen_model.weight_decay = 1.5e-6
 gen_model.num_layers = 20
+gen_model.group_norm_groups = 16
 
 
 # MetaTraining parameters

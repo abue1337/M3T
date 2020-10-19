@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import layers
 from tensorflow.keras import regularizers
 from tensorflow.keras import models
+import tensorflow_addons as tfa
 
 
 @gin.configurable('Resnet')
@@ -19,7 +20,8 @@ class Architecture(models.Model):
                  batch_norm_momentum=0.99,
                  batch_norm_epsilon=1e-3,
                  batch_norm_center=True,
-                 batch_norm_scale=True):
+                 batch_norm_scale=True,
+                 group_norm_groups=16):
         """Constructor.
         Args:
           num_layers: int scalar, num of layers.
@@ -43,6 +45,7 @@ class Architecture(models.Model):
         self._batch_norm_epsilon = batch_norm_epsilon
         self._batch_norm_center = batch_norm_center
         self._batch_norm_scale = batch_norm_scale
+        self._group_norm_groups = group_norm_groups
 
         self._num_units = (num_layers - 2) // 6
 
@@ -61,6 +64,7 @@ class Architecture(models.Model):
             batch_norm_epsilon,
             batch_norm_center,
             batch_norm_scale,
+            group_norm_groups,
             'res_net_unit_%d' % (i + 1)) for i in range(self._num_units)],
             name='block1')
         self._block2 = models.Sequential([ResNetUnit(
@@ -73,6 +77,7 @@ class Architecture(models.Model):
             batch_norm_epsilon,
             batch_norm_center,
             batch_norm_scale,
+            group_norm_groups,
             'res_net_unit_%d' % (i + 1)) for i in range(self._num_units)],
             name='block2')
         self._block3 = models.Sequential([ResNetUnit(
@@ -85,16 +90,16 @@ class Architecture(models.Model):
             batch_norm_epsilon,
             batch_norm_center,
             batch_norm_scale,
+            group_norm_groups,
             'res_net_unit_%d' % (i + 1)) for i in range(self._num_units)],
             name='block3')
 
         self._global_avg = tf.keras.layers.GlobalAveragePooling2D(name="GlobalAvgPooling")
-        self._last_bn = layers.BatchNormalization(-1,
-                                                  batch_norm_momentum,
-                                                  batch_norm_epsilon,
-                                                  batch_norm_center,
-                                                  batch_norm_scale,
-                                                  name='batchnorm_10')
+        self._last_bn = tfa.layers.GroupNormalization(groups=group_norm_groups,
+                                                             axis=-1,
+                                                             epsilon=batch_norm_epsilon,
+                                                             center=batch_norm_center,
+                                                             scale=batch_norm_scale)
         # self._last_conv = layers.Conv2D(self._num_initial_filters*4*4, 1, 1, 'same', use_bias=False,
         #                                 kernel_regularizer=self._kernel_regularizer, name='init_conv') # Last conv has 4 times the filters of layer before
         # self._last_bn2 = layers.BatchNormalization(-1,
@@ -103,7 +108,7 @@ class Architecture(models.Model):
         #                                           batch_norm_center,
         #                                           batch_norm_scale,
         #                                           name='batchnorm_20')
-        #self._mlp_dense_out = tf.keras.layers.Dense(n_classes, use_bias=False, name="Head_Dense",activation='softmax')
+        # self._mlp_dense_out = tf.keras.layers.Dense(n_classes, use_bias=False, name="Head_Dense",activation='softmax')
 
     def call(self, inputs, training=False):
         """Execute the forward pass.
@@ -119,14 +124,14 @@ class Architecture(models.Model):
         h = self._block1(h, training=training)
         h = self._block2(h, training=training)
         h = self._block3(h, training=training)
-        h = tf.nn.relu(self._last_bn(h, training=training))
-        #h = tf.nn.relu(self._last_bn2(self._last_conv(h),training=training))
+        h = tf.nn.relu(self._last_bn(h))
+        # h = tf.nn.relu(self._last_bn2(self._last_conv(h),training=training))
         h = self._global_avg(h)
 
         # For simclr v2:
-        #g = self._mlp_dense_out(h)
+        # g = self._mlp_dense_out(h)
 
-        return h #, g
+        return h  # , g
 
 
 class ResNetUnit(models.Model):
@@ -144,6 +149,7 @@ class ResNetUnit(models.Model):
                  batch_norm_epsilon,
                  batch_norm_center,
                  batch_norm_scale,
+                 group_norm_groups,
                  name):
         """Constructor.
         Args:
@@ -168,12 +174,11 @@ class ResNetUnit(models.Model):
 
         self._kernel_regularizer = regularizers.l2(weight_decay)
 
-        self._bn1 = layers.BatchNormalization(-1,
-                                              batch_norm_momentum,
-                                              batch_norm_epsilon,
-                                              batch_norm_center,
-                                              batch_norm_scale,
-                                              name='batchnorm_1')
+        self._bn1 = tfa.layers.GroupNormalization(groups=group_norm_groups,
+                                                         axis=-1,
+                                                         epsilon=batch_norm_epsilon,
+                                                         center=batch_norm_center,
+                                                         scale=batch_norm_scale)
         self._conv1 = layers.Conv2D(depth,
                                     3,
                                     stride,
@@ -181,12 +186,11 @@ class ResNetUnit(models.Model):
                                     use_bias=True,
                                     kernel_regularizer=self._kernel_regularizer,
                                     name='conv1')
-        self._bn2 = layers.BatchNormalization(-1,
-                                              batch_norm_momentum,
-                                              batch_norm_epsilon,
-                                              batch_norm_center,
-                                              batch_norm_scale,
-                                              name='batchnorm_2')
+        self._bn2 = tfa.layers.GroupNormalization(groups=group_norm_groups,
+                                                         axis=-1,
+                                                         epsilon=batch_norm_epsilon,
+                                                         center=batch_norm_center,
+                                                         scale=batch_norm_scale)
         self._conv2 = layers.Conv2D(depth,
                                     3,
                                     1,
@@ -206,7 +210,7 @@ class ResNetUnit(models.Model):
         """
         depth_in = inputs.shape[3]  # depth_in = num_initial_filters
         depth = self._depth
-        preact = tf.nn.relu(self._bn1(inputs, training=training))
+        preact = tf.nn.relu(self._bn1(inputs))
 
         shortcut = preact if self._shortcut_from_preact else inputs
 
@@ -216,7 +220,7 @@ class ResNetUnit(models.Model):
             shortcut = tf.pad(
                 shortcut, [[0, 0], [0, 0], [0, 0], [(depth - depth_in) // 2] * 2])
 
-        residual = tf.nn.relu(self._bn2(self._conv1(preact),training=training))
+        residual = tf.nn.relu(self._bn2(self._conv1(preact)))
         residual = self._conv2(residual)
 
         outputs = residual + shortcut if self._shortcut_connection else residual

@@ -9,7 +9,7 @@ import sys
 # from utils import utils_params
 
 import matplotlib.pyplot as plt
-
+import tensorflow_addons as tfa
 
 # from model import input_fn, model_fn
 @gin.configurable(blacklist=['target_model', 'shape', 'test_time'])
@@ -217,6 +217,16 @@ class MAML():
                     variables.append(updated_model_layers[i].beta)
 
             elif isinstance(model_layers[i], tf.keras.layers.LayerNormalization):
+                if hasattr(model_layers[i], 'gamma') and model_layers[i].gamma is not None:
+                    updated_model_layers[i].gamma = model_layers[i].gamma - lr * gradients[k]
+                    k += 1
+                    variables.append(updated_model_layers[i].gamma)
+                if hasattr(model_layers[i], 'beta') and model_layers[i].beta is not None:
+                    updated_model_layers[i].beta = \
+                        model_layers[i].beta - lr * gradients[k]
+                    k += 1
+                    variables.append(updated_model_layers[i].beta)
+            elif isinstance(model_layers[i], tfa.layers.GroupNormalization):
                 if hasattr(model_layers[i], 'gamma') and model_layers[i].gamma is not None:
                     updated_model_layers[i].gamma = model_layers[i].gamma - lr * gradients[k]
                     k += 1
