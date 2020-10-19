@@ -38,3 +38,20 @@ def plot_test_time_behaviour(losses, accuracies, run_paths):
     my_file = 'Test_time_behaviour.png'
     plt.savefig(os.path.join(my_path, my_file))
     plt.show()
+
+
+def plot_test_time_behaviour_2(losses, accuracies, path):
+    fig, (ax1, ax2) = plt.subplots(1, 2, tight_layout=True)
+    ax1.plot(range(len(losses)), losses, '--*')
+    fig.suptitle('Test Time Training Behaviour')
+    ax1.set_ylabel('Test Loss')
+    ax1.set_xlabel('Number of gradient steps')
+    ax1.set_title('  ')
+    ax2.plot(range(len(accuracies)), accuracies, '--*')
+
+    ax2.set_ylabel('Test accuracy')
+    ax2.set_xlabel('Number of gradient steps')
+    my_path = path
+    my_file = 'Test_time_behaviour.png'
+    plt.savefig(os.path.join(my_path, my_file))
+    plt.show()
