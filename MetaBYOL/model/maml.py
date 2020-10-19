@@ -295,8 +295,8 @@ class MAML():
 
         logging.info(f"Test acc after {self.num_test_time_steps} gradient steps: {test_accuracy.result()} Test loss after "
                      f"{self.num_test_time_steps} gradient steps:{test_loss.result()}")
-        self.losses.append(test_loss.result())
-        self.accuracies.append(test_accuracy.result())
+        self.losses.append(test_loss.result().numpy())
+        self.accuracies.append(test_accuracy.result().numpy())
         test_loss.reset_states()
         test_accuracy.reset_states()
 
@@ -326,9 +326,9 @@ class MAML():
         for k in range(1, self.num_test_time_steps+1):
             with tf.GradientTape(persistent=False) as test_time_tape:
                 test_time_tape.watch(self.updated_models[k - 1].trainable_variables)
-                prediction1 = self.updated_models[k - 1](train1_ep, training=False, unsupervised_training=True,
-                                                         online=True)  # TODO: Meaningful if domain changed singificantly?
-                prediction2 = self.updated_models[k - 1](train2_ep, training=False, unsupervised_training=True,
+                prediction1 = self.updated_models[k - 1](train1_ep, training=True, unsupervised_training=True,
+                                                         online=True)  # TODO: training=False Meaningful if domain changed singificantly?
+                prediction2 = self.updated_models[k - 1](train2_ep, training=True, unsupervised_training=True,
                                                          online=True)
                 loss1 = self.byol_loss_fn(prediction1, tf.stop_gradient(tar2))
                 loss2 = self.byol_loss_fn(prediction2, tf.stop_gradient(tar1))
