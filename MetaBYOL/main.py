@@ -20,8 +20,8 @@ def set_up_train(path_model_id='', device='0', config_names=['config.gin']):  # 
     # config
     utils_params.inject_gin(config_names, path_model_id=path_model_id)
 
-    ds_train, ds_train_info = input_fn.gen_pipeline_train(split='train[:1%]')
-    ds_val, ds_val_info = input_fn.gen_pipeline_train(split='test[:1%]', validation_set=True)
+    ds_train, ds_train_info = input_fn.gen_pipeline_train(split='train')
+    ds_val, ds_val_info = input_fn.gen_pipeline_train(split='test', validation_set=True)
 
     # set device params
     #utils_devices.set_devices(device)
