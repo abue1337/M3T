@@ -45,7 +45,6 @@ gen_model.weight_decay = 1.5e-6
 gen_model.num_layers = 20
 gen_model.group_norm_groups = 16
 
-
 # MetaTraining parameters
 train.n_meta_epochs = 200
 train.meta_batch_size = %meta_batch_size
@@ -62,8 +61,11 @@ train.save_period = 20
 MAML.num_steps_ml = 1 #are more steps possible? tbd
 MAML.lr_inner_ml = 0.1
 
-#Test Time Training
-MAML.lr_test_time = 0.1
+#Test
+test.num_test_time_steps = 4
+test.test_lr = 0.1
+
+
 
 
 

@@ -12,19 +12,15 @@ import matplotlib.pyplot as plt
 import tensorflow_addons as tfa
 
 # from model import input_fn, model_fn
-@gin.configurable(blacklist=['target_model', 'shape', 'test_time'])
-class MAML():
+@gin.configurable(blacklist=['target_model', 'shape'])
+class MAML:
 
-    def __init__(self, target_model, shape, num_steps_ml, lr_inner_ml, lr_test_time,
-                 test_time=False):
+    def __init__(self, target_model, shape, num_steps_ml, lr_inner_ml):
 
         self.target_model = target_model()
         self.num_steps_ml = num_steps_ml
         self.lr_inner_ml = lr_inner_ml
 
-        self.test_time = test_time
-        self.lr_test_time = lr_test_time
-        self.num_test_time_steps = 0
         self.losses = list()
         self.accuracies = list()
 
@@ -32,7 +28,6 @@ class MAML():
         self.target_model(tf.zeros(shape=self.input_shape))
         self.target_model(tf.zeros(shape=self.input_shape), unsupervised_training=True, online=True)
         self.updated_models = list()
-        self.test_model = target_model()
         for _ in range(self.num_steps_ml + 1):
             updated_model = target_model()
             updated_model(tf.zeros(shape=self.input_shape))
@@ -106,12 +101,9 @@ class MAML():
             epoch_tf.assign(epoch)
             logging.info(f"Epoch {epoch}/{n_meta_epochs}: starting training.")
 
-            tf_meta_batch_size = tf.Variable(1, dtype=tf.int32)
-            tf_meta_batch_size.assign(meta_batch_size)
-
             for train1_ep, train2_ep, test_ep, test_label_ep in ds_train:
                 start = time.time()
-                self.meta_train_step(train1_ep, train2_ep, test_ep, test_label_ep, meta_optimizer, tf_meta_batch_size,
+                self.meta_train_step(train1_ep, train2_ep, test_ep, test_label_ep, meta_optimizer,
                                      meta_batch_size, meta_train_accuracy, meta_train_loss)
 
                 stop = time.time()
@@ -161,7 +153,7 @@ class MAML():
         final_loss = tf.reduce_mean(tasks_final_losses)
         return final_loss, test_predictions
 
-    def meta_train_step(self, train1_ep, train2_ep, test_ep, test_label_ep, meta_optimizer, tf_meta_batch_size,
+    def meta_train_step(self, train1_ep, train2_ep, test_ep, test_label_ep, meta_optimizer,
                         meta_batch_size, meta_train_acc, meta_train_loss):
         with tf.GradientTape(persistent=False) as outer_tape:
             final_loss, test_predictions = self.func_help(train1_ep, train2_ep, test_ep, test_label_ep, meta_batch_size)
@@ -184,10 +176,9 @@ class MAML():
         variables = list()
         model_layers = list(flatten(model.layers))
         updated_model_layers = list(flatten(updated_model.layers))
-        if not self.test_time:
-            lr = self.lr_inner_ml
-        else:
-            lr = self.lr_test_time
+
+        lr = self.lr_inner_ml
+
         gradients = [tf.zeros(1) if v is None else v for v in gradients]
         for i in range(len(model_layers)):
             if isinstance(model_layers[i], tf.keras.layers.Conv2D) or \
@@ -261,7 +252,7 @@ class MAML():
                 loss2 = self.byol_loss_fn(prediction2, tf.stop_gradient(tar1))
                 loss = tf.reduce_mean(loss1 + loss2)
             gradients = train_tape.gradient(loss, self.updated_models[k - 1].meta_trainable_variables)
-
+            #tf.print(gradients)
             self.create_meta_model(self.updated_models[k], self.updated_models[k - 1], gradients)
 
         return self.updated_models[-1]
@@ -281,78 +272,6 @@ class MAML():
         loss = self.loss_function(labels, predictions)
         val_loss(loss)
         val_acc(labels, predictions)
-
-    def test(self,
-             ds_test,
-             run_paths
-             ):
-        meta_optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
-        ckpt = tf.train.Checkpoint(net=self.target_model, opt=meta_optimizer)
-        ckpt_manager = tf.train.CheckpointManager(ckpt, directory=run_paths['path_ckpts_train'],
-                                                  max_to_keep=2, keep_checkpoint_every_n_hours=1)
-        ckpt.restore(ckpt_manager.latest_checkpoint)
-        if ckpt_manager.latest_checkpoint:
-            logging.info(f"Restored from {ckpt_manager.latest_checkpoint}.")
-            epoch_start = int(os.path.basename(ckpt_manager.latest_checkpoint).split('-')[1]) + 1
-        else:
-            logging.info("Initializing from scratch.")
-            epoch_start = 1
-        test_loss, test_accuracy = define_metrics_test()
-        # num_steps = tf.Variable(0, dtype=tf.int32)
-        # num_steps.assign(grad_steps)
-        for im1, im2, test_im, test_label in ds_test:
-            self.help_func_test(im1, im2, test_im, test_label, test_loss, test_accuracy)
-
-        logging.info(f"Test acc after {self.num_test_time_steps} gradient steps: {test_accuracy.result()} Test loss after "
-                     f"{self.num_test_time_steps} gradient steps:{test_loss.result()}")
-        self.losses.append(test_loss.result().numpy())
-        self.accuracies.append(test_accuracy.result().numpy())
-        test_loss.reset_states()
-        test_accuracy.reset_states()
-
-
-
-    @tf.function
-    def help_func_test(self, im1, im2, test_im, test_label, test_loss, test_accuracy):
-        updated_model = self.test_time_loop(im1, im2)
-        test_prediction = updated_model(test_im, training=False, unsupervised_training=False)
-        loss = self.loss_function(test_label, test_prediction)
-        test_loss(loss)
-        test_accuracy(test_label, test_prediction)
-
-    def test_time_loop(self, train1_ep, train2_ep):
-
-        gradients = list()
-        for variable in self.target_model.trainable_variables:
-            gradients.append(tf.zeros_like(variable))
-
-        self.create_meta_model(self.updated_models[0], self.target_model,
-                               gradients)
-
-        tar1 = self.target_model(train1_ep, training=False, unsupervised_training=True)
-        tar2 = self.target_model(train2_ep, training=False,
-                                 unsupervised_training=True)
-        k=0
-        for k in range(1, self.num_test_time_steps+1):
-            with tf.GradientTape(persistent=False) as test_time_tape:
-                test_time_tape.watch(self.updated_models[k - 1].meta_trainable_variables)
-                prediction1 = self.updated_models[k - 1](train1_ep, training=True, unsupervised_training=True,
-                                                         online=True)  # TODO: training=False Meaningful if domain changed singificantly?
-                prediction2 = self.updated_models[k - 1](train2_ep, training=True, unsupervised_training=True,
-                                                         online=True)
-                loss1 = self.byol_loss_fn(prediction1, tf.stop_gradient(tar2))
-                loss2 = self.byol_loss_fn(prediction2, tf.stop_gradient(tar1))
-                loss = tf.reduce_mean(loss1 + loss2)
-            gradients = test_time_tape.gradient(loss, self.updated_models[k - 1].meta_trainable_variables)
-            self.create_meta_model(self.updated_models[k], self.updated_models[k - 1], gradients)
-
-        return self.updated_models[k]
-
-
-def define_metrics_test():
-    test_loss = tf.keras.metrics.Mean(name='test_loss_')
-    test_accuracy = tf.keras.metrics.CategoricalAccuracy(name='test_accuracy_')
-    return test_loss, test_accuracy
 
 
 def flatten(l):
@@ -376,8 +295,6 @@ def define_metrics():
     train_accuracy = tf.keras.metrics.CategoricalAccuracy(name='meta_train_accuracy')
     val_accuracy = tf.keras.metrics.CategoricalAccuracy(name='val_accuracy')
     return train_loss, train_accuracy, val_loss, val_accuracy
-
-
 
 
 def reset_metrics(train_loss, train_accuracy, val_loss, val_accuracy):
