@@ -100,7 +100,7 @@ def gen_pipeline_train(ds_name='mnist',
         return image1, image2, image3, label
 
 
-
+    #@tf.function
     def _batch_specific_aug(*args):
         #TODO: Add contrast?
 
@@ -189,20 +189,14 @@ def gen_pipeline_test_time(ds_name='mnist',
             image1 = tf.cast(image1, tf.float32) / 255.0
             image2 = tf.cast(image2, tf.float32) / 255.0
             image3 = tf.cast(image, tf.float32) / 255.0
-            #image3 = add_gaussian_noise(image3)
+
         elif augmentation == 'simclr':
             image1 = distort_simclr(image)
             image2 = distort_simclr(image)
             image3 = tf.cast(image, tf.float32) / 255.0
-            # image3 = add_gaussian_noise(image3)
+
         return image1, image2, image3, label
 
-    def add_gaussian_noise(image):
-        # image must be scaled in [0, 1]
-        noise = tf.random.normal(shape=tf.shape(image), mean=0.0, stddev=0.01, dtype=tf.float32)
-        noise_img = tf.add(image, noise)
-        noise_img = tf.clip_by_value(noise_img, 0.0, 1.0)
-        return noise_img
 
     # Map data
     dataset = data.map(map_func=_map_data, num_parallel_calls=num_parallel_calls)
