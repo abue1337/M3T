@@ -252,7 +252,7 @@ class MAML():
                                  unsupervised_training=True)
         for k in range(1, self.num_steps_ml + 1):
             with tf.GradientTape(persistent=False) as train_tape:
-                train_tape.watch(self.updated_models[k - 1].trainable_variables)
+                train_tape.watch(self.updated_models[k - 1].meta_trainable_variables)
                 prediction1 = self.updated_models[k - 1](train1_ep, training=True, unsupervised_training=True,
                                                          online=True)
                 prediction2 = self.updated_models[k - 1](train2_ep, training=True, unsupervised_training=True,
@@ -335,7 +335,7 @@ class MAML():
         k=0
         for k in range(1, self.num_test_time_steps+1):
             with tf.GradientTape(persistent=False) as test_time_tape:
-                test_time_tape.watch(self.updated_models[k - 1].trainable_variables)
+                test_time_tape.watch(self.updated_models[k - 1].meta_trainable_variables)
                 prediction1 = self.updated_models[k - 1](train1_ep, training=True, unsupervised_training=True,
                                                          online=True)  # TODO: training=False Meaningful if domain changed singificantly?
                 prediction2 = self.updated_models[k - 1](train2_ep, training=True, unsupervised_training=True,

@@ -5,7 +5,7 @@ set_devices.soft_device_placement = False
 
 # Input Pipeline
 ds_name = 'cifar10'
-meta_batch_size = 64
+meta_batch_size = 4
 size_batch = 8
 tfds_path = '/data/public/tensorflow_datasets'
 #tfds_path = '~\\tensorflow_datasets'
@@ -59,7 +59,7 @@ batch_augmentation.blur_rate = 0.2
 
 #Inner loop
 train.save_period = 20
-MAML.num_steps_ml = 4 #are more steps possible? tbd
+MAML.num_steps_ml = 1 #are more steps possible? tbd
 MAML.lr_inner_ml = 0.1
 
 #Test Time Training

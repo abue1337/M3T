@@ -70,7 +70,7 @@ def gen_pipeline_train(ds_name='mnist',
 
     def _simple_augment(image):
         image = tf.cast(image, tf.float32) / 255.
-        image = tf.image.random_flip_left_right(image)
+        # image = tf.image.random_flip_left_right(image)
         IMG_SIZE = image.shape[0]  # CIFAR10: 32
         # Add 4 pixels of padding
         image = tf.image.resize_with_crop_or_pad(image, IMG_SIZE + 4, IMG_SIZE + 4)
