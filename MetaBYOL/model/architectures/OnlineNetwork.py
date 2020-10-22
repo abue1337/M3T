@@ -29,7 +29,7 @@ class MLP(tf.keras.Model):
 @gin.configurable('OnlineNetwork')
 class Architecture(tf.keras.Model):
     def __init__(self, shape, hidden_size, projection_size, num_classes=None,
-                 base_model='resnet50', num_initial_filters=16, num_layers=20, weight_decay=2e-4):
+                 base_model='resnet50', num_initial_filters=16, num_layers=20, weight_decay=2e-4,group_norm_groups=16):
         super().__init__(name='OnlineNetwork')
         self.shape = shape
         if base_model == 'resnet50':
@@ -38,7 +38,7 @@ class Architecture(tf.keras.Model):
             self.encoder = resnet18.resnet_18()
         elif base_model == 'resnet20':
             self.encoder = Resnet.Architecture(num_classes, num_initial_filters=num_initial_filters,
-                                               num_layers=num_layers, weight_decay=weight_decay)
+                                               num_layers=num_layers, weight_decay=weight_decay,group_norm_groups=group_norm_groups)
         #self.projector = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
         #                     weight_decay=weight_decay)
         # self.predictor = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,

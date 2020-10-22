@@ -9,7 +9,7 @@ import sys
 # from utils import utils_params
 
 import matplotlib.pyplot as plt
-
+import tensorflow_addons as tfa
 
 # from model import input_fn, model_fn
 @gin.configurable(blacklist=['target_model', 'shape', 'test_time'])
@@ -226,6 +226,16 @@ class MAML():
                         model_layers[i].beta - lr * gradients[k]
                     k += 1
                     variables.append(updated_model_layers[i].beta)
+            elif isinstance(model_layers[i], tfa.layers.GroupNormalization):
+                if hasattr(model_layers[i], 'gamma') and model_layers[i].gamma is not None:
+                    updated_model_layers[i].gamma = model_layers[i].gamma - lr * gradients[k]
+                    k += 1
+                    variables.append(updated_model_layers[i].gamma)
+                if hasattr(model_layers[i], 'beta') and model_layers[i].beta is not None:
+                    updated_model_layers[i].beta = \
+                        model_layers[i].beta - lr * gradients[k]
+                    k += 1
+                    variables.append(updated_model_layers[i].beta)
         setattr(updated_model, 'meta_trainable_variables', variables)
 
     def inner_train_loop(self, train1_ep, train2_ep):
@@ -242,7 +252,7 @@ class MAML():
                                  unsupervised_training=True)
         for k in range(1, self.num_steps_ml + 1):
             with tf.GradientTape(persistent=False) as train_tape:
-                train_tape.watch(self.updated_models[k - 1].trainable_variables)
+                train_tape.watch(self.updated_models[k - 1].meta_trainable_variables)
                 prediction1 = self.updated_models[k - 1](train1_ep, training=True, unsupervised_training=True,
                                                          online=True)
                 prediction2 = self.updated_models[k - 1](train2_ep, training=True, unsupervised_training=True,
@@ -325,7 +335,7 @@ class MAML():
         k=0
         for k in range(1, self.num_test_time_steps+1):
             with tf.GradientTape(persistent=False) as test_time_tape:
-                test_time_tape.watch(self.updated_models[k - 1].trainable_variables)
+                test_time_tape.watch(self.updated_models[k - 1].meta_trainable_variables)
                 prediction1 = self.updated_models[k - 1](train1_ep, training=True, unsupervised_training=True,
                                                          online=True)  # TODO: training=False Meaningful if domain changed singificantly?
                 prediction2 = self.updated_models[k - 1](train2_ep, training=True, unsupervised_training=True,
