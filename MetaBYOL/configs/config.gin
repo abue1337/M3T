@@ -25,7 +25,7 @@ gen_pipeline_train.augmentation = 'simclr' #'autoaug'
 gen_pipeline_test_time.augmentation = 'simclr' #'autoaug'
 gen_pipeline_test_time.shuffle_buffer_size = 10000
 gen_pipeline_test_time.dataset_cache = True
-gen_pipeline_test_time.ds_name = %ds_name #'cifar10_corrupted/snow_5' #'cifar10_1'#%ds_name
+#gen_pipeline_test_time.ds_name = %ds_name #'cifar10_corrupted/snow_5' #'cifar10_1'#%ds_name
 gen_pipeline_test_time.tfds_path = %tfds_path
 gen_pipeline_test_time.size_buffer_cpu = 2
 gen_pipeline_test_time.num_parallel_calls = %num_cpu_threads
@@ -62,7 +62,7 @@ MAML.num_steps_ml = 1 #are more steps possible? tbd
 MAML.lr_inner_ml = 0.1
 
 #Test
-test.num_test_time_steps = 4
+test.num_test_time_steps = 1
 test.test_lr = 0.1
 
 

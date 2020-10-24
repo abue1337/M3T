@@ -21,7 +21,7 @@ def test(ds_test,
     ckpt = tf.train.Checkpoint(net=target_model)
     ckpt_manager = tf.train.CheckpointManager(ckpt, directory=run_paths['path_ckpts_train'],
                                               max_to_keep=2, keep_checkpoint_every_n_hours=1)
-    ckpt.restore(ckpt_manager.latest_checkpoint)
+    ckpt.restore(ckpt_manager.latest_checkpoint).expect_partial()
     if ckpt_manager.latest_checkpoint:
         logging.info(f"Restored from {ckpt_manager.latest_checkpoint}.")
         epoch_start = int(os.path.basename(ckpt_manager.latest_checkpoint).split('-')[1]) + 1
