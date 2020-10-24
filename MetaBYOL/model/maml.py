@@ -77,7 +77,7 @@ class MAML:
         ckpt = tf.train.Checkpoint(net=self.target_model, opt=meta_optimizer)
         ckpt_manager = tf.train.CheckpointManager(ckpt, directory=run_paths['path_ckpts_train'],
                                                   max_to_keep=2, keep_checkpoint_every_n_hours=1)
-        ckpt.restore(ckpt_manager.latest_checkpoint)
+        ckpt.restore(ckpt_manager.latest_checkpoint) # ignore optimizer
 
         if ckpt_manager.latest_checkpoint:
             logging.info(f"Restored from {ckpt_manager.latest_checkpoint}.")
@@ -311,3 +311,4 @@ def reset_metrics(train_loss, train_accuracy, val_loss, val_accuracy):
     train_accuracy.reset_states()
     val_loss.reset_states()
     val_accuracy.reset_states()
+

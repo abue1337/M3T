@@ -1,4 +1,6 @@
 import logging
+import os
+
 from model import input_fn, model_fn
 from model.maml import MAML
 from model import test_script
@@ -9,20 +11,15 @@ import matplotlib.pyplot as plt
 import gin
 
 
-def set_up_eval( path_model_id='', run_paths=''):
+def run_test(ds, path_model_id='', run_paths=''):
 
-    # set loggers
-    utils_misc.set_loggers(run_paths['path_logs_eval'], logging.INFO)
-
-    ds_test, ds_test_info = input_fn.gen_pipeline_test_time(split='test')
-    #ds_test, ds_val_info = input_fn.gen_pipeline_train(split='test', validation_set=True)
-
+    ds_test, ds_test_info = input_fn.gen_pipeline_test_time(ds_name=ds, split='test')
 
     # Define model
     target_model = model_fn.gen_model()
     update_model = model_fn.gen_model()
 
-    accuracies,losses = test_script.test(ds_test, target_model, update_model, run_paths)
+    accuracies, losses = test_script.test(ds_test, target_model, update_model, run_paths)
 
     for i in range(len(accuracies)):
         logging.info(
@@ -30,25 +27,60 @@ def set_up_eval( path_model_id='', run_paths=''):
             f"{i} gradient steps:{losses[i]}")
     # utils_plots.plot_test_time_behaviour(maml.losses, maml.accuracies, run_paths)
     # utils_read_write.write_loss_acc_to_file(run_paths, maml.losses, maml.accuracies)
+    test_result = {'accuracy': accuracies, 'losses': losses}
+
+    return test_result
 
 
-
-def eval_main(path_model_id='', bindings=[], inject_gin=True):
+if __name__ == '__main__':
+    # Define model path and test dataset
+    path_model_id = 'C:\\Users\\andre\\Desktop\\experiments\\models\\after_fix\\batch_aug\\run_2020-10-22T17-38-25'
+    #path_model_id = '/home/m134/Documents/Arbeit/UnsupervisedRepresentationLearning/Models/MTTT/experiments/models/run_2020-10-22T13-49-11-115948_batch'  # define model for test
+    LEVEL = 5
+    USE_ALL = False
+    if USE_ALL:
+        test_datasets = [f'cifar10_corrupted/brightness_{LEVEL}',
+                         f'cifar10_corrupted/contrast_{LEVEL}',
+                         f'cifar10_corrupted/defocus_blur_{LEVEL}',
+                         f'cifar10_corrupted/elastic_{LEVEL}',
+                         f'cifar10_corrupted/fog_{LEVEL}',
+                         f'cifar10_corrupted/frost_{LEVEL}',
+                         f'cifar10_corrupted/frosted_glass_blur_{LEVEL}',
+                         f'cifar10_corrupted/gaussian_blur_{LEVEL}',
+                         f'cifar10_corrupted/impulse_noise_{LEVEL}',
+                         f'cifar10_corrupted/jpeg_compression_{LEVEL}',
+                         f'cifar10_corrupted/motion_blur_{LEVEL}',
+                         f'cifar10_corrupted/pixelate_{LEVEL}',
+                         f'cifar10_corrupted/saturate_{LEVEL}',
+                         f'cifar10_corrupted/shot_noise_{LEVEL}',
+                         f'cifar10_corrupted/snow_{LEVEL}',
+                         f'cifar10_corrupted/spatter_{LEVEL}',
+                         f'cifar10_corrupted/speckle_noise_{LEVEL}',
+                         f'cifar10_corrupted/zoom_blur_{LEVEL}']
+    else:
+        test_datasets = ['cifar10_corrupted/fog_5', 'cifar10_corrupted/snow_5']
 
     # generate folder structures
     run_paths = utils_params.gen_run_folder(path_model_id=path_model_id)
 
     # gin config files
-    if inject_gin:
-        config_names = ['config.gin']
-        # config
-        utils_params.inject_gin(config_names, path_model_id=path_model_id)
-        #utils_params.inject_gin(config_names, path_model_id=path_model_id, bindings=bindings, from_operative=True, run_paths=run_paths)
+    config_names = ['config.gin']
+    # config
+    utils_params.inject_gin(config_names, path_model_id=path_model_id)
+    # utils_params.inject_gin(config_names, path_model_id=path_model_id, bindings=bindings, from_operative=True, run_paths=run_paths)
 
-    # start testing
-    set_up_eval(path_model_id=path_model_id, run_paths=run_paths)
+    # set loggers
+    utils_misc.set_loggers(run_paths['path_logs_test'], logging.INFO)
 
+    results = {}
+    for dataset in test_datasets:
+        # start testing
+        result = run_test(ds=dataset, path_model_id=path_model_id, run_paths=run_paths)
+        results[dataset] = result
 
-if __name__ == '__main__':
-    path_model_id = 'C:\\Users\\andre\\Desktop\\experiments\\models\\after_fix\\run_2020-10-21T22-03-09'
-    eval_main(path_model_id=path_model_id)
+    # Convert all results to json and print all results
+    utils_read_write.save_result_json(os.path.join(run_paths['path_model_id'], 'test_results.json'), results)
+
+    # Print results
+    for key, value in results.items():
+        logging.info(f"{key:>40}: {value}")
