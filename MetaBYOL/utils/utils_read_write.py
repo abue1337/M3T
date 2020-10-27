@@ -1,5 +1,5 @@
 import json
-from MetaBYOL.utils import utils_plots
+
 
 def write_loss_acc_to_file(run_paths, loss, acc):
     json_string1 = json.dumps(str(loss))

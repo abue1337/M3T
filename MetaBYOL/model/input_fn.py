@@ -154,7 +154,7 @@ def gen_pipeline_train(ds_name='mnist',
 @gin.configurable
 def gen_pipeline_test_time(ds_name='mnist',
                            tfds_path='~/tensorflow_datasets',
-                           size_batch=8,
+                           size_batch=1,
                            b_shuffle=True,
                            size_buffer_cpu=5,
                            shuffle_buffer_size=0,

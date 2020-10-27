@@ -4,7 +4,7 @@ import tensorflow as tf
 import gin
 
 
-@gin.configurable(blacklist=['ds_test', 'target_model', 'run_paths'])
+@gin.configurable(blacklist=['ds_test', 'target_model', 'update_model', 'run_paths'])
 def test(ds_test,
          target_model,
          update_model,
@@ -15,8 +15,35 @@ def test(ds_test,
     losses = list()
     accuracies = list()
 
-    target_model(tf.zeros(shape=ds_test._flat_shapes[0][0:]))
-    update_model(tf.zeros(shape=ds_test._flat_shapes[0][0:]))
+    @tf.function
+    def eval_zero_grad(test_im, test_label, target_model, test_loss, test_accuracy):
+        test_prediction = target_model(test_im, training=False, unsupervised_training=False)
+        loss = loss_function(test_label, test_prediction)
+        test_loss(loss)
+        test_accuracy(test_label, test_prediction)
+
+    @tf.function
+    def inner_loop(im1, im2, test_im, test_label, target_model, update_model, optimizer, test_loss, test_accuracy,
+                   grad_steps):
+        tar1 = target_model(im1, training=True, unsupervised_training=True)
+        tar2 = target_model(im2, training=True, unsupervised_training=True)
+        for k in tf.range(grad_steps):
+            with tf.GradientTape() as test_tape:
+                prediction1 = update_model(im1, training=True, unsupervised_training=True, online=True)
+                prediction2 = update_model(im2, training=True, unsupervised_training=True, online=True)
+                loss1 = byol_loss_fn(prediction1, tf.stop_gradient(tar2))
+                loss2 = byol_loss_fn(prediction2, tf.stop_gradient(tar1))
+                loss = tf.reduce_mean(loss1 + loss2)
+            gradients = test_tape.gradient(loss, update_model.trainable_variables,
+                                           unconnected_gradients=tf.UnconnectedGradients.ZERO)
+            optimizer.apply_gradients(zip(gradients, update_model.trainable_variables))
+        test_prediction = update_model(test_im, training=False, unsupervised_training=False)
+        loss = loss_function(test_label, test_prediction)
+        test_loss(loss)
+        test_accuracy(test_label, test_prediction)
+
+    target_model.build(input_shape=tuple([None] + ds_test._flat_shapes[0][1:].as_list()))
+    update_model.build(input_shape=tuple([None] + ds_test._flat_shapes[0][1:].as_list()))
 
     ckpt = tf.train.Checkpoint(net=target_model)
     ckpt_manager = tf.train.CheckpointManager(ckpt, directory=run_paths['path_ckpts_train'],
@@ -32,12 +59,16 @@ def test(ds_test,
     meta_test_optimizer = tf.optimizers.SGD(learning_rate=test_lr)
 
     grad_steps_tf = tf.Variable(1, dtype=tf.int32)
-    for i in range(num_test_time_steps+1):
+    for i in range(num_test_time_steps + 1):
         grad_steps_tf.assign(i)
-        for im1, im2, test_im, test_label in ds_test:
-            update_model.set_weights(target_model.get_weights())  # TODO: check if ckpt.restore or
-            inner_loop(im1, im2, test_im, test_label, target_model, update_model, meta_test_optimizer, test_loss,
-                       test_accuracy, grad_steps_tf)
+        if grad_steps_tf == 0:
+            for im1, im2, test_im, test_label in ds_test:
+                eval_zero_grad(test_im, test_label, target_model, test_loss, test_accuracy)
+        else:
+            for im1, im2, test_im, test_label in ds_test:
+                update_model.set_weights(target_model.get_weights())  # TODO: check if ckpt.restore or
+                inner_loop(im1, im2, test_im, test_label, target_model, update_model, meta_test_optimizer, test_loss,
+                           test_accuracy, grad_steps_tf)
         logging.info(
             f"Test acc after {i} gradient steps: {test_accuracy.result()} Test loss after "
             f"{i} gradient steps:{test_loss.result()}")
@@ -46,28 +77,6 @@ def test(ds_test,
         test_loss.reset_states()
         test_accuracy.reset_states()
     return accuracies, losses
-
-
-#@tf.function
-def inner_loop(im1, im2, test_im, test_label, target_model, update_model, optimizer, test_loss, test_accuracy, grad_steps):
-    tar1 = target_model(im1, training=True, unsupervised_training=True)
-    tar2 = target_model(im2, training=True, unsupervised_training=True)
-    for k in range(grad_steps + 1):
-        with tf.GradientTape(persistent=False) as test_tape:
-            test_tape.watch(update_model.trainable_variables)
-            prediction1 = update_model(im1, training=True, unsupervised_training=True,
-                                        online=True)
-            prediction2 = update_model(im2, training=True, unsupervised_training=True,
-                                        online=True)
-            loss1 = byol_loss_fn(prediction1, tf.stop_gradient(tar2))
-            loss2 = byol_loss_fn(prediction2, tf.stop_gradient(tar1))
-            loss = tf.reduce_mean(loss1 + loss2)
-        gradients = test_tape.gradient(loss, update_model.trainable_variables, unconnected_gradients=tf.UnconnectedGradients.ZERO)
-        optimizer.apply_gradients(zip(gradients, update_model.trainable_variables))
-    test_prediction = update_model(test_im, training=False, unsupervised_training=False)
-    loss = loss_function(test_label, test_prediction)
-    test_loss(loss)
-    test_accuracy(test_label, test_prediction)
 
 
 def loss_function(labels, predictions):

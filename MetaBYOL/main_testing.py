@@ -21,10 +21,6 @@ def run_test(ds, path_model_id='', run_paths=''):
 
     accuracies, losses = test_script.test(ds_test, target_model, update_model, run_paths)
 
-    for i in range(len(accuracies)):
-        logging.info(
-            f"Test acc after {i} gradient steps: {accuracies[i]} Test loss after "
-            f"{i} gradient steps:{losses[i]}")
     # utils_plots.plot_test_time_behaviour(maml.losses, maml.accuracies, run_paths)
     # utils_read_write.write_loss_acc_to_file(run_paths, maml.losses, maml.accuracies)
     test_result = {'accuracy': accuracies, 'losses': losses}

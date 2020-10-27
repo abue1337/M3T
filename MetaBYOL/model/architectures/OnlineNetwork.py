@@ -39,14 +39,13 @@ class Architecture(tf.keras.Model):
         elif base_model == 'resnet20':
             self.encoder = Resnet.Architecture(num_classes, num_initial_filters=num_initial_filters,
                                                num_layers=num_layers, weight_decay=weight_decay,group_norm_groups=group_norm_groups)
-        #self.projector = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
+        # self.projector = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
         #                     weight_decay=weight_decay)
         # self.predictor = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
         #                     weight_decay=weight_decay)
         self.classifier = MLP(hidden_size=hidden_size, projection_size=10, momentum=0.9,
                               weight_decay=weight_decay)
 
-    # @tf.function
     def call(self, inputs, unsupervised_training=False, online=False, training=False):
         # connect layers here
         features = inputs
