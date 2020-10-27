@@ -21,6 +21,10 @@ def run_test(ds, path_model_id='', run_paths=''):
 
     accuracies, losses = test_script.test(ds_test, target_model, update_model, run_paths)
 
+    for i in range(len(accuracies)):
+        logging.info(
+            f"Test acc after {i} gradient steps: {accuracies[i]} Test loss after "
+            f"{i} gradient steps:{losses[i]}")
     # utils_plots.plot_test_time_behaviour(maml.losses, maml.accuracies, run_paths)
     # utils_read_write.write_loss_acc_to_file(run_paths, maml.losses, maml.accuracies)
     test_result = {'accuracy': accuracies, 'losses': losses}
@@ -31,7 +35,7 @@ def run_test(ds, path_model_id='', run_paths=''):
 if __name__ == '__main__':
     # Define model path and test dataset
     path_model_id = 'C:\\Users\\andre\\Desktop\\experiments\\models\\after_fix\\batch_aug\\run_2020-10-22T17-38-25'
-    #path_model_id = '/home/m134/Documents/Arbeit/UnsupervisedRepresentationLearning/Models/MTTT/experiments/models/run_2020-10-22T13-49-11-115948_batch'  # define model for test
+    #path_model_id = '/misc/usrhomes/s1353/MetaBYOL/experiments/models/run_2020-10-22T17-38-25/'  # define model for test
     LEVEL = 5
     USE_ALL = False
     if USE_ALL:
