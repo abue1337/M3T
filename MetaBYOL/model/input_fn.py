@@ -162,6 +162,7 @@ def gen_pipeline_test_time(ds_name='mnist',
                            augmentation='simclr',
                            num_parallel_calls=10,
                            split='test',
+                           image_repetition=False
                            ):
     # Load and prepare tensorflow dataset
     data, info = tfds.load(name=ds_name,
@@ -169,6 +170,15 @@ def gen_pipeline_test_time(ds_name='mnist',
                            split=split,
                            shuffle_files=False,
                            with_info=True)
+
+    @tf.function
+    def _map_data_im_rep(*args):
+        image = tf.expand_dims(args[0]['image'], 0)
+        image = tf.repeat(image, repeats=size_batch, axis=0)
+
+        label = tf.one_hot(args[0]['label'], info.features['label'].num_classes)
+        label = tf.repeat(tf.expand_dims(label, 0), repeats=size_batch, axis=0)
+        return image, label
 
     @tf.function
     def _map_data(*args):
@@ -199,15 +209,20 @@ def gen_pipeline_test_time(ds_name='mnist',
 
 
     # Map data
-    dataset = data.map(map_func=_map_data, num_parallel_calls=num_parallel_calls)
+    if image_repetition is True:
+        dataset = data.map(map_func=_map_data_im_rep, num_parallel_calls=num_parallel_calls)
+    else:
+        dataset = data.map(map_func=_map_data, num_parallel_calls=num_parallel_calls)
+        dataset = dataset.unbatch()
     # Cache data
     if dataset_cache:
         dataset = dataset.cache()
-    # Shuffle data
-    if b_shuffle:
-        if shuffle_buffer_size == 0:
-            shuffle_buffer_size = info.splits['train'].num_examples
-        dataset = dataset.shuffle(buffer_size=shuffle_buffer_size, reshuffle_each_iteration=True)
+    if image_repetition is False:
+        # Shuffle data
+        if b_shuffle:
+            if shuffle_buffer_size == 0:
+                shuffle_buffer_size = info.splits['train'].num_examples
+            dataset = dataset.shuffle(buffer_size=shuffle_buffer_size, reshuffle_each_iteration=True)
     dataset = dataset.map(map_func=_map_test_time_augment, num_parallel_calls=num_parallel_calls)
     # Batching
     dataset = dataset.batch(batch_size=size_batch,
