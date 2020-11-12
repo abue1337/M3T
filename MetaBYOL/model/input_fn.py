@@ -211,9 +211,10 @@ def gen_pipeline_test_time(ds_name='mnist',
     # Map data
     if image_repetition is True:
         dataset = data.map(map_func=_map_data_im_rep, num_parallel_calls=num_parallel_calls)
+        dataset = dataset.unbatch()
     else:
         dataset = data.map(map_func=_map_data, num_parallel_calls=num_parallel_calls)
-        dataset = dataset.unbatch()
+
     # Cache data
     if dataset_cache:
         dataset = dataset.cache()
