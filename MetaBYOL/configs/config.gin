@@ -59,7 +59,7 @@ batch_augmentation.blur_rate = 0.2
 
 #Inner loop
 train.save_period = 20
-MAML.num_steps_ml = 1 #are more steps possible? tbd
+MAML.num_steps_ml = 3 #are more steps possible? tbd
 MAML.lr_inner_ml = 0.1
 
 #Test

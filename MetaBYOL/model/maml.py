@@ -158,6 +158,10 @@ class MAML:
         with tf.GradientTape(persistent=False) as outer_tape:
             final_loss, test_predictions = self.func_help(train1_ep, train2_ep, test_ep, test_label_ep, meta_batch_size)
         outer_gradients = outer_tape.gradient(final_loss, self.target_model.trainable_variables)
+        # Apply some clipping
+        #outer_gradients = [tf.clip_by_norm(g, 10.0)
+        #         for g in outer_gradients]
+
         meta_optimizer.apply_gradients(zip(outer_gradients, self.target_model.trainable_variables))
         meta_train_acc(test_label_ep, test_predictions)
         meta_train_loss(final_loss)
@@ -238,10 +242,11 @@ class MAML:
         self.create_meta_model(self.updated_models[0], self.target_model,
                                gradients)
 
-        tar1 = self.target_model(train1_ep, training=True, unsupervised_training=True)
-        tar2 = self.target_model(train2_ep, training=True,
-                                 unsupervised_training=True)
+
         for k in range(1, self.num_steps_ml + 1):
+            tar1 = self.updated_models[k - 1](train1_ep, training=True, unsupervised_training=True)
+            tar2 = self.updated_models[k - 1](train2_ep, training=True,
+                                     unsupervised_training=True)
             with tf.GradientTape(persistent=False) as train_tape:
                 train_tape.watch(self.updated_models[k - 1].meta_trainable_variables)
                 prediction1 = self.updated_models[k - 1](train1_ep, training=True, unsupervised_training=True,
