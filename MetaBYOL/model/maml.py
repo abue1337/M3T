@@ -190,7 +190,7 @@ class MAML:
         loss1 = self.byol_loss_fn(prediction1, tf.stop_gradient(tar2))
         loss2 = self.byol_loss_fn(prediction2, tf.stop_gradient(tar1))
         loss = tf.reduce_mean(loss1 + loss2)
-        test_loss = test_loss+loss        
+        test_loss = test_loss+0.1*loss
 
         return test_loss, test_prediction, meta_prediction
 
