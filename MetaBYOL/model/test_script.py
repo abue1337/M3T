@@ -25,9 +25,10 @@ def test(ds_test,
     @tf.function
     def inner_loop(im1, im2, test_im, test_label, target_model, update_model, optimizer, test_loss, test_accuracy,
                    grad_steps):
-        tar1 = target_model(im1, training=True, unsupervised_training=True)
-        tar2 = target_model(im2, training=True, unsupervised_training=True)
+
         for k in range(1, grad_steps+1):
+            tar1 = update_model(im1, training=True, unsupervised_training=True)
+            tar2 = update_model(im2, training=True, unsupervised_training=True)
             with tf.GradientTape() as test_tape:
                 prediction1 = update_model(im1, training=True, unsupervised_training=True, online=True)
                 prediction2 = update_model(im2, training=True, unsupervised_training=True, online=True)
