@@ -34,10 +34,10 @@ def run_test(ds, path_model_id='', run_paths=''):
 
 if __name__ == '__main__':
     # Define model path and test dataset
-    path_model_id = 'C:\\Users\\andre\\Desktop\\experiments\\models\\after_fix\\batch_aug\\run_2020-10-22T17-38-25'
-    #path_model_id = '/misc/usrhomes/s1353/MetaBYOL/experiments/models/run_2020-10-22T17-38-25/'  # define model for test
+    #path_model_id = 'C:\\Users\\andre\\Desktop\\experiments\\models\\after_fix\\batch_aug\\run_2020-10-22T17-38-25'
+    path_model_id = '/misc/usrhomes/s1353/MetaBYOL/experiments/models/run_2020-12-03T09-23-03/'  # define model for test
     LEVEL = 5
-    USE_ALL = False
+    USE_ALL = True
     if USE_ALL:
         test_datasets = [f'cifar10_corrupted/brightness_{LEVEL}',
                          f'cifar10_corrupted/contrast_{LEVEL}',

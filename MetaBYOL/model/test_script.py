@@ -47,8 +47,7 @@ def test(ds_test,
     target_model.build(input_shape=tuple([None] + ds_test._flat_shapes[0][1:].as_list()))
     target_model(tf.zeros(shape=tuple(8 + ds_test._flat_shapes[0][1:])), unsupervised_training=True, online=True)
     update_model.build(input_shape=tuple([None] + ds_test._flat_shapes[0][1:].as_list()))
-    update_model(tf.zeros(shape=tuple(8 + ds_test._flat_shapes[0][1:])), unsupervised_training=True, online=True)
-
+    update_model(tf.zeros(shape=tuple(8 +ds_test._flat_shapes[0][1:])), unsupervised_training=True, online=True)
     ckpt = tf.train.Checkpoint(net=target_model)
     ckpt_manager = tf.train.CheckpointManager(ckpt, directory=run_paths['path_ckpts_train'],
                                               max_to_keep=2, keep_checkpoint_every_n_hours=1)

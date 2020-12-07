@@ -28,7 +28,7 @@ gen_pipeline_test_time.dataset_cache = True
 #gen_pipeline_test_time.ds_name = %ds_name #'cifar10_corrupted/snow_5' #'cifar10_1'#%ds_name
 gen_pipeline_test_time.tfds_path = %tfds_path
 gen_pipeline_test_time.size_buffer_cpu = 2
-gen_pipeline_test_time.size_batch = 1
+gen_pipeline_test_time.size_batch = 8
 gen_pipeline_test_time.num_parallel_calls = %num_cpu_threads
 
 
@@ -49,7 +49,7 @@ gen_model.group_norm_groups = 16
 # MetaTraining parameters
 train.n_meta_epochs = 200
 train.meta_batch_size = %meta_batch_size
-train.meta_learning_rate = 0.1
+train.meta_learning_rate = 0.01
 train.optimizer = 'SGD'
 
 # Batch specific augmentation
@@ -59,12 +59,12 @@ batch_augmentation.blur_rate = 0.2
 
 #Inner loop
 train.save_period = 20
-MAML.num_steps_ml = 3 #are more steps possible? tbd
+MAML.num_steps_ml = 1 #are more steps possible? tbd
 MAML.lr_inner_ml = 0.1
 
 #Test
-test.num_test_time_steps = 2
-test.test_lr = 0.01
+test.num_test_time_steps = 5
+test.test_lr = 0.1
 
 
 

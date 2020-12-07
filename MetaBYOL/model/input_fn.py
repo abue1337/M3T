@@ -162,7 +162,7 @@ def gen_pipeline_test_time(ds_name='mnist',
                            augmentation='simclr',
                            num_parallel_calls=10,
                            split='test',
-                           image_repetition=False
+                           image_repetition=True
                            ):
     # Load and prepare tensorflow dataset
     data, info = tfds.load(name=ds_name,

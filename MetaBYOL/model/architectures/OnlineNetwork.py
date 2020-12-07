@@ -10,9 +10,9 @@ from model.architectures import resnet18
 
 
 class MLP(tf.keras.Model):
-    def __init__(self, hidden_size, projection_size, momentum, weight_decay, unsup=False):
+    def __init__(self, hidden_size, projection_size, momentum, weight_decay,unsup =False):
         super().__init__()
-        self.unsup = unsup
+        self.unsup=unsup
         self._kernel_regularizer = tf.keras.regularizers.l2(weight_decay)
         self.dense = tf.keras.layers.Dense(hidden_size, activation='relu', kernel_regularizer=self._kernel_regularizer)
         #self.batch_norm = tf.keras.layers.BatchNormalization(momentum=momentum)
@@ -21,9 +21,9 @@ class MLP(tf.keras.Model):
 
     def call(self, x, training=False):
         output = x
-        if self.unsup==True:
+        if self.unsup == True:
             output = self.dense(x)
-        #output = self.batch_norm(output, training=training)
+            #output = self.batch_norm(output, training=training)
         output = self.dense1(output)
         return output
 
@@ -41,10 +41,10 @@ class Architecture(tf.keras.Model):
         elif base_model == 'resnet20':
             self.encoder = Resnet.Architecture(num_classes, num_initial_filters=num_initial_filters,
                                                num_layers=num_layers, weight_decay=weight_decay,group_norm_groups=group_norm_groups)
-        # self.projector = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
-        #                     weight_decay=weight_decay)
+        #self.projector = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
+        #                      weight_decay=weight_decay,unsup=True)
         self.predictor = MLP(hidden_size=hidden_size, projection_size=projection_size, momentum=0.9,
-                             weight_decay=weight_decay,online=True)
+                             weight_decay=weight_decay,unsup=True)
         self.classifier = MLP(hidden_size=hidden_size, projection_size=10, momentum=0.9,
                               weight_decay=weight_decay)
 
