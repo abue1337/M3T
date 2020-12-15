@@ -20,7 +20,7 @@ if __name__ == '__main__':
     if single_plot:
         path = 'C:\\Users\\andre\\Desktop\\experiments\\models\\rotation_try\\no inner steps\\run_2020-11-19T13-38-35\\logs\\test\\bs32duplicate_grad10_lr_0_01\\'
     if not single_plot:
-        paths = ['C:\\Users\\andre\\Desktop\\experiments\\models\\rotation_try\\no inner steps\\olr0_01\\run_2020-12-01T09-05-20\\logs\\test\\grad5_bs32_lr0_1\\',
+        paths = ['C:\\Users\\andre\\Desktop\\experiments\\models\\rotation_try\\no_inner_steps\\olr0_01\\run_2020-12-01T09-05-20\\logs\\test\\grad5_bs32_lr0_1\\',
         'C:\\Users\\andre\\Desktop\\experiments\\models\\rotation_try\\olr0_01_ilr0_1_step1\\run_2020-11-26T09-35-03\\logs\\test\\bs32duplicate_grad5_lr_0_1\\',
                  'C:\\Users\\andre\\Desktop\\experiments\\models\\rotation_try\\olr0_01_ilr0_1_step1\\run_2020-11-26T09-35-03\\logs\\test\\bs32duplicate_grad5_lr_0_05\\']
 
