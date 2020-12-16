@@ -31,14 +31,14 @@ if __name__ == '__main__':
     ###version one - BYOL
     result_path = [
         'C:\\Users\\andre\\Desktop\\experiments\\models\\base_models\\run_2020-10-22T09-43-58-651902_simple\\test_results.json',
-        'C:\\Users\\andre\\Desktop\\experiments\\models\\base_models\\run_2020-10-22T13-47-42-872076_single\\test_results.json',
         'C:\\Users\\andre\\Desktop\\experiments\\models\\base_models\\run_2020-10-22T13-49-11-115948_batch\\test_results.json',
+        'C:\\Users\\andre\\Desktop\\experiments\\models\\inner_byol\\withpredictor\\no_inner_steps\\olr0_01_ilr0_0_gradsteps_0\\run_2020-12-07T09-08-37\\logs\\test\\grad5_lr0_1_bs8\\test_results.json',
         #'C:\\Users\\andre\\Desktop\\experiments\\models\\inner_byol\\withpredictor\\olr0_01_ilr_0_1_step1\\run_2020-12-07T14-36-49\\logs\\test\\grad5_lr0_1_bs8\\test_results.json',
         #'C:\\Users\\andre\\Desktop\\experiments\\models\\inner_byol\\withpredictor\\olr0_01_ilr_0_1_step1\\run_2020-12-07T14-36-49\\logs\\test\\grad5_lr0_1_bs8\\test_results.json']
         'C:\\Users\\andre\\Desktop\\experiments\\models\\inner_byol\\withpredictor\\olr0_01_ilr_0_1_step2\\run_2020-12-07T14-49-58\\logs\\test\\grad5_lr0_1_bs8\\test_results.json',
         'C:\\Users\\andre\\Desktop\\experiments\\models\\inner_byol\\withpredictor\\olr0_01_ilr_0_1_step2\\run_2020-12-07T14-49-58\\logs\\test\\grad5_lr0_1_bs8\\test_results.json']
 
-    labels = ['Baseline Simple','Baseline Batch', 'Baseline Joint','Meta Trained 0 ttt step','Meta Trained 1 ttt step']
+    labels = ['Baseline Simple','Baseline Batch', 'Baseline Joint','Meta Trained 0 ttt step','Meta Trained 2 ttt step']
     save_to = 'result_bar_byol_2step_vs_joint.pdf'
     NUM_RESULTS = len(result_path)
     METRIC = 'accuracy'
