@@ -14,9 +14,10 @@ class MLP(tf.keras.Model):
         super().__init__()
         self.unsup=unsup
         self._kernel_regularizer = tf.keras.regularizers.l2(weight_decay)
-        self.dense = tf.keras.layers.Dense(hidden_size, activation='relu', kernel_regularizer=self._kernel_regularizer)
-        #self.batch_norm = tf.keras.layers.BatchNormalization(momentum=momentum)
-        # self.dropout = tf.keras.layers.Dropout(0.5)
+        if unsup == True:
+            self.dense = tf.keras.layers.Dense(hidden_size, activation='relu', kernel_regularizer=self._kernel_regularizer)
+            # self.batch_norm = tf.keras.layers.BatchNormalization(momentum=momentum)
+            # self.dropout = tf.keras.layers.Dropout(0.5)
         self.dense1 = tf.keras.layers.Dense(projection_size, kernel_regularizer=self._kernel_regularizer)
 
     def call(self, x, training=False):
